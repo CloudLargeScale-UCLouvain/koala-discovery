@@ -1,0 +1,45 @@
+version: '3.2'
+services:
+    
+    koala:
+        image: gtato/koala
+        build: koala
+        privileged: true
+        ports:
+        #    # - '192.168.100.199:53:53/udp'
+           - 8008:8008
+        # volumes:
+        #     - ./koala:/koala
+        deploy:
+            replicas: 2
+            # mode: global
+            # placement:
+            #     constraints: [node.role == worker]
+
+    registrator:
+        command: "/bin/registrator -internal=true koala://172.17.0.1:8008"
+        image: gtato/registrator
+        depends_on: 
+            - koala
+        volumes:
+            - "/var/run/docker.sock:/tmp/docker.sock"
+        deploy:
+            mode: global
+
+    test:
+        image: gtato/service-test
+        build: service-test
+        privileged: true
+        # depends_on: 
+        #     - registrator
+        # dns:
+        #     - koala
+
+    hello:
+        image: gtato/service-hello
+        build: service-hello
+        privileged: true
+        # depends_on: 
+        #     - registrator
+        volumes:
+            - /app/node_modules

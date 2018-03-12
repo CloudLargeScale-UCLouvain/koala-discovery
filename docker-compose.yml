@@ -1,0 +1,60 @@
+version: '3'
+services:
+    
+    # koala:
+    #     image: gtato/koala
+    #     build: koala
+    #     privileged: true
+    #     ports:
+    #        - 8008:8008
+    #        - 8007:8007
+    #     volumes:
+    #         - ./koala:/koala
+    #     environment:
+    #         - KOALA_DC
+    #         - KOALA_BOOT
+    #         - KOALA_BOOT_URL=http://192.168.56.1:8007
+    #         - KOALA_IP
+
+    registrator:
+        command: "/bin/registrator -internal=true koala://172.17.0.1:8008"
+        image: gtato/registrator
+        # dockcontainer_name: registrator
+        # depends_on: 
+        #     - koala
+        volumes:
+            - "/var/run/docker.sock:/tmp/docker.sock"
+
+    test:
+        image: gtato/service-test
+        build: service-test
+        privileged: true
+        depends_on: 
+            - registrator
+        # dns:
+        #     - koala
+        expose:
+            - 3001
+
+    hello:
+        image: gtato/service-hello
+        build: service-hello
+        privileged: true
+        depends_on: 
+            - redis
+        expose:
+            - 3000
+        volumes:
+            - /app/node_modules
+        environment:
+            REDIS_HOST: redis
+
+    redis:
+        image: redis
+        expose:
+            -  6379
+
+    mongo:
+        image: mongo:3.4.6
+        ports:
+            -  27017:27017

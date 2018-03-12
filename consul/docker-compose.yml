@@ -1,0 +1,16 @@
+version: '3'
+services:
+  consul:
+    command: "-server -bootstrap -node consul -advertise ${HOST_IP} -config-file /etc/consul.d/config.json"
+    image: progrium/consul:latest
+    container_name: consul
+    ports:
+      - "8300:8300"
+      - "8400:8400"
+      - "8500:8500"
+      - "8600:53/udp"
+    volumes:
+      - "./consul_watches_config.json:/etc/consul.d/config.json"
+      - "./script.sh:/tmp/script.sh"
+    environment:
+      - HOST_IP
