@@ -1,11 +1,10 @@
 var djb2 = require('djb2')
 var request = require('request');
 var self = {
-    Node: function(host, port) {
+    Node: function(url) {
         var mynode = this;
-        this.id = self.hash2id(host);
-        this.host = host;
-        this.port = port;
+        this.id = self.hash2id(url);
+        this.url = url;
         this.rt = {neighbors:[], successors:[], predecessors:[], longlinks:[]}
         this.boot_node = {};
         this.register = function (){
@@ -33,7 +32,7 @@ var self = {
         }
 
         this.sendRT = function (){
-            request.post('http://'+this.boot_node.host+':'+this.boot_node.port+'/api/rt', { json: {sender: this.me(), rt:this.rt} },
+            request.post('http://'+this.boot_node.url+'/api/rt', { json: {sender: this.me(), rt:this.rt} },
                 function (error, response, body) {
                 if (!error && response.statusCode == 200) {
                     mynode.onReceiveRT(body)
@@ -80,11 +79,12 @@ var self = {
         }
 
         this.getInfo = function(){console.log('ID: ' + this.id);};
-        this.me = function(){return {id:this.id, host:this.host, port:this.port}}
-        this.meCompact = function(){return this.id+'@'+this.host+":"+this.port}
+        this.me = function(){return {id:this.id, url:this.url}}
+        this.meCompact = function(){return this.id+'@'+this.url}
 
     },
     hash2id: function (str){
+        if (str == 'sharelatex-web-80') return '7-47' //DELETE THIS ATROCITY  
         return self.hash(str,nr_dc) + 
         '-' + 
         self.hash(str,nr_nodes_x_dc)
@@ -95,8 +95,7 @@ var self = {
     },
     convertCompact2Obj: function(comp){
         spl1 = comp.split('@')
-        spl2 = spl1[1].split(':')
-        return {id:spl1[0],host:spl2[0],port:spl2[1]}
+        return {id:spl1[0],url:spl1[1]}
     }
 
 };

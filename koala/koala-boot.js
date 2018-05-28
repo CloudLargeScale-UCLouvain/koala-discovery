@@ -13,7 +13,7 @@ app.get('/api/list', function (req, res) {
     if (boots.hasOwnProperty(datacenter)) {
         instances = boots[datacenter]
         for(var i=0; i < instances.length; i++)
-            bootList += instances[i].id+'@'+instances[i].host + ':'+instances[i].port+'<br>'
+            bootList += instances[i].id+'@'+instances[i].url +'<br>'
         bootList += '<a href="/api/clear">Clear list</a>'
     }
   }
