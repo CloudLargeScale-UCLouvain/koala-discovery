@@ -84,7 +84,7 @@ var self = {
 
     },
     hash2id: function (str){
-        if (str == 'sharelatex-web-80') return '7-47' //DELETE THIS ATROCITY  
+        // if (str == 'sharelatex-web-80') return '7-47' //DELETE THIS ATROCITY  
         return self.hash(str,nr_dc) + 
         '-' + 
         self.hash(str,nr_nodes_x_dc)

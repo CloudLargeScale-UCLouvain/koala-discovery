@@ -478,6 +478,5 @@ appserver.listen(port, function(){
     koalaNode.register()
     
     console.log('Koala router listening on port:' + port)
-    
-    // n.getInfo()
+    // koalaNode.getInfo()
 });
