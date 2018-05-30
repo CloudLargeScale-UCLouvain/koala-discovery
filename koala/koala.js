@@ -64,6 +64,7 @@ var self = {
             hash = self.hash2id(service)
             sid = parseInt(hash.split('-')[0])
             nodes =  this.rt.neighbors.concat([this.me()])
+            nodes.sort(function(a,b) {return (a.id > b.id) ? 1 : ((b.id > a.id) ? -1 : 0);})
             min = nr_dc 
             ret = {}
             for(i in nodes){
