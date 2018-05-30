@@ -35,6 +35,7 @@ nr_nodes_x_dc = 100
 services={}
 koalaNode={}
 boot_url = 'http://localhost:8007'
+koala_url = 'localhost:8008'
 
 id = Math.floor(Math.random() * nr_nodes_x_dc)
 dc = '0'
