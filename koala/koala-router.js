@@ -22,7 +22,7 @@ appserver.on('upgrade', function (req, socket, head) {
 
 proxy.on('proxyReq', function(proxyReq, req, res, options) {
   if(req.body) {
-    let bodyData = JSON.stringify(req.body);
+    var bodyData = JSON.stringify(req.body);
     proxyReq.setHeader('Content-Type','application/json');
     proxyReq.setHeader('Content-Length', Buffer.byteLength(bodyData));
     proxyReq.write(bodyData);
@@ -222,91 +222,13 @@ app.get('/', function (req, res) {
 
 function fwd_to_service(req,res){fwd_to_service(req,res,null)}
 
-// function fwd_to_service(req,res,head){
-//     sname = getServiceName(req) 
-//     is_fwd = 'x-forwarded-uri' in req.headers
-//     is_fwd_store_perm = 'x-forwarded-koala-store' in req.headers
-//     fwdname = is_fwd ? sname + req.headers['x-forwarded-uri'] : ''
-//     is_obj_context = isInObjectContext(req)    
-//     objname = is_obj_context ? sname+req.headers.referer.split(sname)[1] : ''
-
-//     if(is_fwd_store_perm){
-//         sel = selectInstance(sname)
-//         service = {name:fwdname, type:'object', sname:sname, host:sel.host, port:sel.port} 
-//         req.url = getCallbackUrl(req.headers)
-//         registerService(service)
-//         proxyWeb(req, res, getUrl(req.upgrade, sel.host, sel.port, ''));
-//         return;
-//     }
-
-//     resp = koalaNode.getResponsible(sname)
-    
-//     //if it is a fwd, i am not the resp and i haven't registered it, ask permission from the resp
-//     if (is_fwd  && resp.id != koalaNode.id && (sname in services) && !(fwdname in services) ){
-//         req.headers['x-forwarded-koala'] = koalaNode.meCompact()
-//         proxyWeb(req, res, getUrl(req.upgrade, resp.host, resp.port, ''));
-//         return;
-//     }
-
-//     searchname = is_fwd && (resp.id == koalaNode.id || fwdname in services)? fwdname : sname;
-//     if(is_obj_context)
-//         searchname = objname
-
-//     sel = selectInstance(searchname);
-//     if(sel) {
-//         is_local = koalaNode.id == sel.koala.id
-//         trg = ''
-//         if(is_local){
-//             req.url = req.url.split(sname)[1]
-//             if(is_fwd)
-//                 req.url = getCallbackUrl(req.headers)
-//             trg = getUrl(req.upgrade, sel.host, sel.port, '')
-//             console.log(sname + ': ' + req.method + " " + getUrl(req.upgrade, sel.host, sel.port, req.url) )
-//         }else{
-//             trg = getUrl(req.upgrade, sel.koala.host, sel.koala.port, '')
-//         }
-//         if(req.upgrade)
-//             proxyWS(req, head, trg)
-//         else
-//             proxyWeb(req, res, trg);
-//     }else{
-//         if (resp.id == koalaNode.id){        
-//             if(is_fwd){
-//                 if('x-forwarded-koala' in req.headers){
-//                     //another koala is asking if it can store this object locally (keep a trace and give permission)
-//                     senderKoala = koala.convertCompact2Obj(req.headers['x-forwarded-koala'])
-//                     req.headers['x-forwarded-koala-store'] = true;
-//                     service = {name:fwdname, type:'object', sname:sname, host:'xxx', port:'yyy', koala:senderKoala} 
-//                     registerService(service)
-//                     proxyWeb(req, res, getUrl(req.upgrade, senderKoala.host, senderKoala.port, ''));
-//                 }else{
-//                     //local object (register it as a service and forward)
-//                     sel = selectInstance(sname)
-//                     service = {name:fwdname, type:'object', sname:sname, host:sel.host, port:sel.port} 
-//                     req.url = getCallbackUrl(req.headers)
-//                     registerService(service)
-//                     proxyWeb(req, res, getUrl(req.upgrade, sel.host, sel.port, ''));
-//                 }
-//             }
-//             else
-//                 res.send('No service registered with this name: ' + sname)
-//         }else{
-//             proxyWeb(req, res, getUrl(req.upgrade, resp.host, resp.port, ''));
-//         }
-//     }
-    
-// }
-
-
 
 function fwd_to_service(req,res,head){
     sname = getServiceName(req) 
     is_fwd = req.params && 'object_id' in req.params 
     is_fwd_store_perm = 'x-forwarded-koala-perm' in req.headers
     fwdname = is_fwd ? sname + '/' + req.params.object_id : ''
-    // is_obj_context = isInObjectContext(req)    
-    // objname = is_obj_context ? sname+req.headers.referer.split(sname)[1] : ''
-
+    
     if(is_fwd_store_perm){
         sel = selectInstance(sname)
         service = {name:fwdname, type:'object', sname:sname, url:sel.url} 
@@ -326,9 +248,7 @@ function fwd_to_service(req,res,head){
     }
 
     searchname = is_fwd && (resp.id == koalaNode.id || fwdname in services)? fwdname : sname;
-    // if(is_obj_context)
-    //     searchname = objname
-
+    
     sel = selectInstance(searchname);
     if(sel) {
         is_local = koalaNode.id == sel.koala.id
@@ -387,14 +307,6 @@ function getServiceName(req){
         return params[3] 
 }
 
-// function isInObjectContext(req){
-//     sname = getServiceName(req)
-//     referer = req.headers.referer
-//     if (referer == null)
-//         return false
-//     obj = sname+referer.split(sname)[1]
-//     return selectInstance(obj) != null;
-// }
 
 function proxyWeb(req, res, trg)
 {
@@ -431,11 +343,6 @@ function getUrl(ws, url, m){
     return prot+'://'+url+m;
 }
 
-// function getCallbackUrl(headers){
-//     loc = headers['x-forwarded-location']
-//     callback = headers['x-forwarded-callback']
-//     return headers['x-forwarded-uri'].replace(loc,callback)
-// }
 
 function getCallbackUrl(req){
     return '/'+req.params.callback_id+'/'+req.params[0]
