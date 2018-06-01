@@ -1,5 +1,6 @@
 var djb2 = require('djb2')
 var request = require('request');
+var store = require('./store');
 var self = {
     Node: function(url) {
         var mynode = this;
@@ -32,7 +33,7 @@ var self = {
         }
 
         this.sendRT = function (){
-            request.post('http://'+this.boot_node.url+'/api/rt', { json: {sender: this.me(), rt:this.rt} },
+            request.post('http://'+this.boot_node.url+'/api/rt', { json: {sender: this.me(), rt:this.rt, data:[]} },
                 function (error, response, body) {
                 if (!error && response.statusCode == 200) {
                     mynode.onReceiveRT(body)
@@ -44,12 +45,19 @@ var self = {
         this.onReceiveRT = function (body){
             rec_rt = body.rt
             rec_rt.neighbors.push(body.sender)
+            is_sender_neighbor = false
+            store.registerServices(body.data)
+
+
             for(i in rec_rt.neighbors){
                 n = rec_rt.neighbors[i]
                 if(n.id == this.id || this.isNeighbor(n)) continue;
+                if(n.id == body.sender.id) 
+                    is_sender_neighbor = true
                 this.rt.neighbors.push(n)
                 console.log('Got neighbor: ' + n.id)
             }
+            return store.getServicesForResponsable(body.sender.id)
         }
 
         this.isNeighbor = function (rn){
@@ -98,6 +106,9 @@ var self = {
         spl1 = comp.split('@')
         return {id:spl1[0],url:spl1[1]}
     }
+    
+
+
 
 };
 

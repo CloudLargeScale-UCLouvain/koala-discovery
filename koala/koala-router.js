@@ -3,6 +3,7 @@ const bodyParser   = require('body-parser')
 // const forward = require('http-forward')
 const httpProxy = require('http-proxy');
 var koala = require('./koala');
+var store = require('./store');
 var request = require('request');
 
 const app = express()
@@ -32,46 +33,23 @@ proxy.on('proxyReq', function(proxyReq, req, res, options) {
 
 nr_dc = 10
 nr_nodes_x_dc = 100
-services={}
+// services={}
 koalaNode={}
 boot_url = 'http://localhost:8007'
+syncer_url = 'http://localhost:8005'
 koala_url = 'localhost:8008'
+
 
 id = Math.floor(Math.random() * nr_nodes_x_dc)
 dc = '0'
 koala_host = '172.0.0.1'
 
 API_RT = '/api/rt'
-API_LIST = '/api/list'
 API_REGISTER = '/api/register'
 API_DEREGISTER = '/api/deregister'
 API_GET = '/api/get/:service'
 API_GET_ALL = '/api/get/:service/*'
 API_GET_OBJECT_ALL = '/api/get/:service/object/:object_id/callback/:callback_id/*'
-
-app.get(API_LIST, function (req, res) {
-  srvList = 'Koala instance: ' + koalaNode.id + '<br>'
-  for (var key in services) {
-    if (services.hasOwnProperty(key)) {
-        instances = services[key]
-        for(var i=0; i < instances.length; i++){
-            rn = instances[i].type == 'service' ? instances[i].name : instances[i].sname
-            resp = koalaNode.getResponsible(rn)
-            is_local = koalaNode.id == instances[i].koala.id ? 'local' : 'remote@'+instances[i].koala.id
-            is_resp = koalaNode.id == resp.id  ? 'responsible' : 'non responsible'
-            srvList +=  instances[i].type + '-' +  
-            '<a target="blank" href=/api/get/'+instances[i].name+'>'+ instances[i].name + '</a> '+
-            '@' + instances[i].url + 
-            ' (' + is_local + ')' +
-            ' (' + is_resp + ')' +
-            '<br>'
-        }
-    }
-}
-
-  if (Object.keys(services).length == 0) srvList += 'No services registered yet'
-  res.send(srvList)
-}) 
 
 
 app.get(API_REGISTER, function (req, res) {
@@ -80,30 +58,23 @@ app.get(API_REGISTER, function (req, res) {
 
 app.post(API_REGISTER, function (req, res) {
   service = req.body
-  resp = koalaNode.getResponsible(service.name)
-  registerService(service)
-  if (resp.id != koalaNode.id)
-    request.post(getApiUrl(resp.url, 'register'),{ json: service },function (error, response, body) {console.log(body)});
-  
+  if (!service.name.startsWith("koala-")){
+      resp = koalaNode.getResponsible(service.name)
+      store.registerServices([service])
+      if (resp.id != koalaNode.id)
+        request.post(getApiUrl(resp.url, 'register'),{ json: service },function (error, response, body) {console.log(body)});
+      if (service.name == 'redis')
+        request.post(syncer_url+'/add_redis',{ json: {'host':koala_host, 'port':service.port} },function (error, response, body) {console.log('Redis registered')});
+   }
   res.send('Service ' + service.name + ' registered successfully' )
 })
 
-function registerService(service){
-    if(!service.hasOwnProperty('koala'))
-        service.koala = koalaNode.me()
-    if(!service.hasOwnProperty('type'))
-        service.type = 'service'
-    if (!(service.name in services))
-        services[service.name]=[]
-    if(!service.hasOwnProperty('url'))
-        service.url = service.host + ':' + service.port
-  services[service.name].push(service)
-}
+
 
 app.post(API_RT, function (req, res) {
   //do stuff and send back the rt
-  koalaNode.onReceiveRT(req.body);
-  res.json({sender: koalaNode.me(), rt:koalaNode.rt})
+  neighServs = koalaNode.onReceiveRT(req.body);
+  res.json({sender: koalaNode.me(), rt:koalaNode.rt, data:neighServs})
 })
 
 
@@ -122,20 +93,6 @@ app.post(API_DEREGISTER, function (req, res) {
   }
 })
 
-function deregisterService(service){
-    //TODO: don't forget to deregister objects if the service goes down, or even when they are deleted
-    sname = service.name
-    if (!(sname in services)) return false;
-    for(i in services[sname]){
-        if(services[sname][i].url == service.url){
-            services[sname].splice(i,1)
-            if(services[sname].length == 0)
-                delete services[sname]
-            return true;    
-        }
-    }
-    return false;
-}
 
 
 app.get(API_GET, function (req, res) {
@@ -191,12 +148,12 @@ app.get('/', function (req, res) {
     // }
 
     srvList = '<h2>Koala instance: ' + koalaNode.id + '</h2><br>'
-    if (Object.keys(services).length > 0) 
+    if (Object.keys(store.services).length > 0) 
         srvList += '<table style="margin: 0 auto;text-align:center"><tr><th>Type</th><th>Name</th><th>URL</th><th>Location</th><th>Responsibility</th></tr>'
 
-    for (var key in services) {
-        if (services.hasOwnProperty(key)) {
-            instances = services[key]
+    for (var key in store.services) {
+        if (store.services.hasOwnProperty(key)) {
+            instances = store.services[key]
             for(var i=0; i < instances.length; i++){
                 rn = instances[i].type == 'service' ? instances[i].name : instances[i].sname
                 resp = koalaNode.getResponsible(rn)
@@ -213,7 +170,7 @@ app.get('/', function (req, res) {
         }
     }
 
-    if (Object.keys(services).length == 0) srvList += 'No services registered yet'
+    if (Object.keys(store.services).length == 0) srvList += 'No services registered yet'
     else srvList += '</table>'
     res.send('<div style="text-align:center">'+srvList+'</div>')
 
@@ -233,7 +190,7 @@ function fwd_to_service(req,res,head){
         sel = selectInstance(sname)
         service = {name:fwdname, type:'object', sname:sname, url:sel.url} 
         req.url = getCallbackUrl(req)
-        registerService(service)
+        store.registerServices([service])
         proxyWeb(req, res, getUrl(req.upgrade, sel.url, ''));
         return;    
     }
@@ -241,13 +198,13 @@ function fwd_to_service(req,res,head){
     resp = koalaNode.getResponsible(sname)
     
     //if it is a fwd, i am not the resp and i haven't registered it, ask permission from the resp
-    if (is_fwd  && resp.id != koalaNode.id && (sname in services) && !(fwdname in services) ){
+    if (is_fwd  && resp.id != koalaNode.id && (sname in store.services) && !(fwdname in store.services) ){
         req.headers['x-forwarded-koala'] = koalaNode.meCompact()
         proxyWeb(req, res, getUrl(req.upgrade, resp.url, ''));
         return;
     }
 
-    searchname = is_fwd && (resp.id == koalaNode.id || fwdname in services)? fwdname : sname;
+    searchname = is_fwd && (resp.id == koalaNode.id || fwdname in store.services)? fwdname : sname;
     
     sel = selectInstance(searchname);
     if(sel) {
@@ -275,14 +232,14 @@ function fwd_to_service(req,res,head){
                     senderKoala = koala.convertCompact2Obj(req.headers['x-forwarded-koala'])
                     req.headers['x-forwarded-koala-perm'] = true;
                     service = {name:fwdname, type:'object', sname:sname, url:'xxx', koala:senderKoala} 
-                    registerService(service)
+                    store.registerServices([service])
                     proxyWeb(req, res, getUrl(req.upgrade, senderKoala.url, ''));
                 }else{
                     //local object (register it as a service and forward)
                     sel = selectInstance(sname)
                     service = {name:fwdname, type:'object', sname:sname, url:sel.url} 
                     req.url = getCallbackUrl(req)
-                    registerService(service)
+                    store.registerServices([service])
                     proxyWeb(req, res, getUrl(req.upgrade, sel.url, ''));
                 }
             }
@@ -349,8 +306,8 @@ function getCallbackUrl(req){
 }
 
 function selectInstance(sname){
-    if (sname in services){
-        instances = services[sname]
+    if (sname in store.services){
+        instances = store.services[sname]
         locals = []
         remotes = []
         for(i in instances){
@@ -373,6 +330,7 @@ function selectInstance(sname){
 
 if(process.env.KOALA_BOOT_URL) boot_url = process.env.KOALA_BOOT_URL
 if(process.env.KOALA_URL) koala_url = process.env.KOALA_URL
+if(process.env.SYNCER_URL) syncer_url = process.env.SYNCER_URL
 spt = koala_url.split(':')
 koala_host = spt[0]
 port = spt.length > 1 ? spt[1] : 8008
@@ -384,7 +342,10 @@ appserver.listen(port, function(){
     
     koalaNode = new koala.Node(koala_url)    
     koalaNode.register()
-    
+
+    // if(koalaNode.id == '4-64')
+    //     store.registerServices([{"name": "bobi", "host": "192.168.56.100", "port": "6379"}])
+
     console.log('Koala router listening on port:' + port)
     // koalaNode.getInfo()
 });
