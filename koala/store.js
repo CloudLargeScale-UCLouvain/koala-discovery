@@ -57,6 +57,10 @@ var self = {
             }
         }
         return servs;
+    },
+
+    clearServices: function(){
+        this.services = {}
     }
 
 

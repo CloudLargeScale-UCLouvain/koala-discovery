@@ -9,6 +9,7 @@ var request = require('request');
 const app = express()
 app.use(bodyParser.urlencoded());
 app.use(bodyParser.json());
+app.use(express.static('client'))
 var proxy = httpProxy.createProxyServer();
 var expressWs = require('express-ws')(app);
 
@@ -45,6 +46,7 @@ dc = '0'
 koala_host = '172.0.0.1'
 
 API_RT = '/api/rt'
+API_CLEAR = '/api/clear'
 API_REGISTER = '/api/register'
 API_DEREGISTER = '/api/deregister'
 API_GET = '/api/get/:service'
@@ -56,14 +58,20 @@ app.get(API_REGISTER, function (req, res) {
   res.send('Register a service')
 }) 
 
+app.get(API_CLEAR, function (req, res) {
+  store.clearServices()
+  res.send('storage was cleared')
+}) 
+
 app.post(API_REGISTER, function (req, res) {
   service = req.body
-  if (!service.name.startsWith("koala-")){
+  sent_from_koala = service.hasOwnProperty('koala')
+  if (!service.name.startsWith("koala-")){ //don't register koala itself
       resp = koalaNode.getResponsible(service.name)
       store.registerServices([service])
       if (resp.id != koalaNode.id)
         request.post(getApiUrl(resp.url, 'register'),{ json: service },function (error, response, body) {console.log(body)});
-      if (service.name == 'redis')
+      if (service.name == 'redis' && !sent_from_koala)
         request.post(syncer_url+'/add_redis',{ json: {'host':koala_host, 'port':service.port} },function (error, response, body) {console.log('Redis registered')});
    }
   res.send('Service ' + service.name + ' registered successfully' )
@@ -82,12 +90,12 @@ app.post(API_DEREGISTER, function (req, res) {
   sname = req.body.name
   resp = koalaNode.getResponsible(sname)
   if (resp.id == koalaNode.id){
-      if (deregisterService(req.body))
+      if (store.deregisterService(req.body))
         res.send('Service ' + sname + ' deregistered successfully' )
       else
         res.send('Service ' + sname + ' is not registered' )
   }else{
-    deregisterService(req.body)
+    store.deregisterService(req.body)
     req.body.koala = koalaNode.me()
     request.post(getApiUrl(resp.url, 'deregister'),{ json: req.body },function (error, response, body) {res.send(body)});
   }
@@ -147,7 +155,9 @@ app.get('/', function (req, res) {
     //     fwd_to_service(req,res,sname)   
     // }
 
-    srvList = '<h2>Koala instance: ' + koalaNode.id + '</h2><br>'
+    srvList = '<script src="home.js"></script>'
+    srvList += '<h2>Koala instance: ' + koalaNode.id + '</h2><br>'
+    srvList += '<div id="srvs">'
     if (Object.keys(store.services).length > 0) 
         srvList += '<table style="margin: 0 auto;text-align:center"><tr><th>Type</th><th>Name</th><th>URL</th><th>Location</th><th>Responsibility</th></tr>'
 
@@ -172,6 +182,7 @@ app.get('/', function (req, res) {
 
     if (Object.keys(store.services).length == 0) srvList += 'No services registered yet'
     else srvList += '</table>'
+    srvList += '</div><br><input type="button" onClick="aclear()" value="Clear">'
     res.send('<div style="text-align:center">'+srvList+'</div>')
 
 
@@ -343,8 +354,8 @@ appserver.listen(port, function(){
     koalaNode = new koala.Node(koala_url)    
     koalaNode.register()
 
-    // if(koalaNode.id == '4-64')
-    //     store.registerServices([{"name": "bobi", "host": "192.168.56.100", "port": "6379"}])
+    if(koalaNode.id == '8-88')
+        store.registerServices([{"name": "bobi", "host": "192.168.56.100", "port": "6379"}])
 
     console.log('Koala router listening on port:' + port)
     // koalaNode.getInfo()
