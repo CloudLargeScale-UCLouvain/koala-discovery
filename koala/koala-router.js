@@ -201,14 +201,16 @@ function fwd_to_service(req,res,head){
     params = parseRequest(req)  
     sname = params.service
     is_get = req.method == 'GET'
-    is_fwd = params.object != null 
-    is_fwd_store_perm = 'x-forwarded-koala-perm' in req.headers
-    // fwdname = is_fwd ? sname + '/' + params.object : ''
-    fwdname = is_fwd ?  params.object : ''
+    is_object = params.object != null 
+    is_object_store_perm = 'x-forwarded-koala-perm' in req.headers
+    object_url = 'xxx'
+    fwdname = is_object ?  params.object : ''
+    service_sel = selectInstance(sname);
 
-    if(is_fwd_store_perm){
-        sel = selectInstance(sname)
-        service = {name:fwdname, type:'object', sname:sname, url:sel.url} 
+    if(is_object_store_perm){
+        // sel = selectInstance(sname)
+        // service = {name:fwdname, type:'object', sname:sname, url:sel.url} 
+        service = {name:fwdname, type:'object', sname:'none', url:object_url} 
         req.url = getCallbackUrl(req)
         store.registerServices([service])
         proxyWeb(req, res, getUrl(req.upgrade, sel.url, ''));
@@ -218,24 +220,21 @@ function fwd_to_service(req,res,head){
     resp = koalaNode.getResponsible(sname)
     
     //if it is a fwd, i am not the resp and i haven't registered it, ask permission from the resp
-    if (is_fwd && is_get && resp.id != koalaNode.id && (sname in store.services) && !(fwdname in store.services) ){
+    if (is_object && is_get && resp.id != koalaNode.id && (sname in store.services) && !(fwdname in store.services) ){
         req.headers['x-forwarded-koala'] = koalaNode.meCompact()
         proxyWeb(req, res, getUrl(req.upgrade, resp.url, ''));
         return;
     }
 
-    searchname = is_fwd && (resp.id == koalaNode.id || fwdname in store.services)? fwdname : sname;
+    searchname = is_object && (resp.id == koalaNode.id || fwdname in store.services)? fwdname : sname;
     
     sel = selectInstance(searchname);
     if(sel) {
         is_local = koalaNode.id == sel.koala.id
         trg = ''
         if(is_local){
-            // req.url = req.url.split(sname)[1]
             req.url = getCallbackUrl(req)
-            // if(is_fwd && cb)
-            //     req.url = cb
-            trg = getUrl(req.upgrade, sel.url, '')
+            trg = is_object ? getUrl(req.upgrade, service_sel.url, '') : getUrl(req.upgrade, sel.url, '')
             console.log(sname + ': ' + req.method + " " + getUrl(req.upgrade, sel.url, req.url) )
         }else{
             trg = getUrl(req.upgrade, sel.koala.url, '')
@@ -246,22 +245,23 @@ function fwd_to_service(req,res,head){
             proxyWeb(req, res, trg);
     }else{
         if (resp.id == koalaNode.id){        
-            if(is_fwd){
+            if(is_object){
                 if('x-forwarded-koala' in req.headers){
                     //another koala is asking if it can store this object locally
                     // (keep a trace and give permission)
                     senderKoala = koala.convertCompact2Obj(req.headers['x-forwarded-koala'])
                     req.headers['x-forwarded-koala-perm'] = true;
-                    service = {name:fwdname, type:'object', sname:sname, url:'xxx', koala:senderKoala} 
+                    service = {name:fwdname, type:'object', sname:'none', url:object_url, koala:senderKoala} 
                     store.registerServices([service])
                     proxyWeb(req, res, getUrl(req.upgrade, senderKoala.url, ''));
                 }else{
                     //local object (register it as a service and forward)
-                    sel = selectInstance(sname)
-                    service = {name:fwdname, type:'object', sname:sname, url:sel.url} 
+                    // sel = selectInstance(sname)
+                    // service = {name:fwdname, type:'object', sname:'none', url:sel.url} 
+                    service = {name:fwdname, type:'object', sname:'none', url:object_url} 
                     req.url = getCallbackUrl(req)
                     store.registerServices([service])
-                    proxyWeb(req, res, getUrl(req.upgrade, sel.url, ''));
+                    proxyWeb(req, res, getUrl(req.upgrade, service_sel.url, ''));
                 }
             }
             else
