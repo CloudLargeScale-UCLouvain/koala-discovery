@@ -25,7 +25,7 @@ appserver.on('upgrade', function (req, socket, head) {
 proxy.on('proxyReq', function(proxyReq, req, res, options) {
   if(req.body && req.headers['content-type'] != 'image/jpeg') {
     var bodyData = JSON.stringify(req.body);
-    // proxyReq.setHeader('Content-Type','application/json');
+    proxyReq.setHeader('Content-Type','application/json');
     proxyReq.setHeader('Content-Length', Buffer.byteLength(bodyData));
     proxyReq.write(bodyData);
   }
@@ -335,7 +335,8 @@ function getUrl(ws, url, m){
     prot = 'http'
     if(ws) 
         prot = 'ws'
-    m = m.startsWith('/') ? m : '/'+m;
+    if(m && m.length > 0)
+        m = m.startsWith('/') ? m : '/'+m;
     return prot+'://'+url+m;
 }
 
