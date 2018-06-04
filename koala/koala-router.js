@@ -165,8 +165,8 @@ app.get('/', function (req, res) {
         if (store.services.hasOwnProperty(key)) {
             instances = store.services[key]
             for(var i=0; i < instances.length; i++){
-                rn = instances[i].type == 'service' ? instances[i].name : instances[i].sname
-                resp = koalaNode.getResponsible(rn)
+                // rn = instances[i].type == 'service' ? instances[i].name : instances[i].sname
+                resp = koalaNode.getResponsible(instances[i].name)
                 is_local = koalaNode.id == instances[i].koala.id ? 'local' : 'remote@'+instances[i].koala.id
                 is_resp = koalaNode.id == resp.id  ? 'responsible' : 'non responsible'
                 srvList += '<tr>'
@@ -213,7 +213,7 @@ function fwd_to_service(req,res,head){
         service = {name:fwdname, type:'object', sname:'none', url:object_url} 
         req.url = getCallbackUrl(req)
         store.registerServices([service])
-        proxyWeb(req, res, getUrl(req.upgrade, sel.url, ''));
+        proxyWeb(req, res, getUrl(req.upgrade, service_sel.url, ''));
         return;    
     }
 
