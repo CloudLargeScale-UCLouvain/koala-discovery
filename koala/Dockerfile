@@ -9,7 +9,9 @@ ADD koala-boot.js /koala
 ADD koala-router.js /koala
 ADD koala.js /koala
 ADD store.js /koala
+ADD client /koala
 ADD koala.sh /koala
+
 
 WORKDIR /koala
 

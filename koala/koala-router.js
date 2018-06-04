@@ -51,7 +51,7 @@ API_REGISTER = '/api/register'
 API_DEREGISTER = '/api/deregister'
 API_GET = '/api/get/:service'
 API_GET_ALL = '/api/get/:service/*'
-API_GET_OBJECT_ALL = '/api/get/:service/object/:object_id/callback/:callback_id/*'
+API_GET_OBJECT_ALL = '/api/get/:service/object/:object/callback/:callback/*'
 
 
 app.get(API_REGISTER, function (req, res) {
@@ -192,11 +192,13 @@ function fwd_to_service(req,res){fwd_to_service(req,res,null)}
 
 
 function fwd_to_service(req,res,head){
-    sname = getServiceName(req) 
-    is_fwd = req.params && 'object_id' in req.params 
+    params = parseRequest(req)  
+    sname = params.service
+    is_fwd = params.object != null //req.params && 'object_id' in req.params 
     is_fwd_store_perm = 'x-forwarded-koala-perm' in req.headers
-    fwdname = is_fwd ? sname + '/' + req.params.object_id : ''
-    
+    // fwdname = is_fwd ? sname + '/' + params.object : ''
+    fwdname = is_fwd ?  params.object : ''
+
     if(is_fwd_store_perm){
         sel = selectInstance(sname)
         service = {name:fwdname, type:'object', sname:sname, url:sel.url} 
@@ -222,9 +224,10 @@ function fwd_to_service(req,res,head){
         is_local = koalaNode.id == sel.koala.id
         trg = ''
         if(is_local){
-            req.url = req.url.split(sname)[1]
-            if(is_fwd)
-                req.url = getCallbackUrl(req)
+            // req.url = req.url.split(sname)[1]
+            req.url = getCallbackUrl(req)
+            // if(is_fwd && cb)
+            //     req.url = cb
             trg = getUrl(req.upgrade, sel.url, '')
             console.log(sname + ': ' + req.method + " " + getUrl(req.upgrade, sel.url, req.url) )
         }else{
@@ -266,15 +269,33 @@ function fwd_to_service(req,res,head){
 
 
 
-function getServiceName(req){
-    if(req.params && req.params.sname)
-        return req.params.service
+function parseRequest(req){
+    ret = {service:null, object:null, callback:null, rest:null}
+    if(req.params){
+        ret.service = req.params.service
+        ret.object = req.params.object
+        ret.callback = req.params.callback
+    } 
+    
+    url = req.originalUrl ? req.originalUrl : req.url;
 
-    params = req.url.split('/')
-    if(params.length > 3)
-        return params[3] 
+    if(!ret.service) ret.service = findInfo(url, "/api/get/.+?/", 'get/')
+    if(!ret.object)  ret.object = findInfo(url, "/object/.+?/", 'object/') 
+    if(!ret.callback) ret.callback = findInfo(url, "/callback/.+?/", 'callback/') 
+
+    if(ret.callback) ret.rest = url.split('callback/'+ret.callback+'/')[1]    
+    else if(ret.object) ret.rest = url.split('object/'+ret.object+'/')[1]    
+    else if(ret.service) ret.rest = url.split(ret.service+'/')[1]    
+    else ret.rest = req.originalUrl
+    return ret
 }
 
+function findInfo(url, regex, static){
+    var r = new RegExp(regex);
+    n = r.exec(url);
+    if(n) return String(n).split(static)[1].slice(0,-1)
+    return null    
+}
 
 function proxyWeb(req, res, trg)
 {
@@ -313,7 +334,9 @@ function getUrl(ws, url, m){
 
 
 function getCallbackUrl(req){
-    return '/'+req.params.callback_id+'/'+req.params[0]
+    prs = parseRequest(req)
+    if (prs.callback) return '/'+prs.callback+'/'+prs.rest 
+    return '/'+prs.rest
 }
 
 function selectInstance(sname){
@@ -354,8 +377,8 @@ appserver.listen(port, function(){
     koalaNode = new koala.Node(koala_url)    
     koalaNode.register()
 
-    if(koalaNode.id == '8-88')
-        store.registerServices([{"name": "bobi", "host": "192.168.56.100", "port": "6379"}])
+    // if(koalaNode.id == '8-88')
+    //     store.registerServices([{"name": "bobi", "host": "192.168.56.100", "port": "6379"}])
 
     console.log('Koala router listening on port:' + port)
     // koalaNode.getInfo()
