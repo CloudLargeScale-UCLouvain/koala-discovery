@@ -183,7 +183,13 @@ app.get('/', function (req, res) {
     if (Object.keys(store.services).length == 0) srvList += 'No services registered yet'
     else srvList += '</table>'
     srvList += '</div><br><input type="button" onClick="aclear()" value="Clear">'
-    res.send('<div style="text-align:center">'+srvList+'</div>')
+    neigsList = 'No neighbors yet'
+    if(koalaNode.rt.neighbors.length > 0){
+        neigsList = 'Neighbors: <br><table style="margin: 0 auto;text-align:center"><tr><th>ID</th><th>URL</th></tr>'
+        for(var i = 0; i < koalaNode.rt.neighbors.length; i++)
+            neigsList += '<tr><td>'+koalaNode.rt.neighbors[i].id+'</td><td><a target="blank" href="http://'+koalaNode.rt.neighbors[i].url+'">'+ koalaNode.rt.neighbors[i].url +'</a></td></tr>'
+    }
+    res.send('<div style="text-align:center">'+srvList + '<br><br>'+ neigsList +'</div>')
 
 
 })
