@@ -23,9 +23,9 @@ appserver.on('upgrade', function (req, socket, head) {
 
 
 proxy.on('proxyReq', function(proxyReq, req, res, options) {
-  if(req.body) {
+  if(req.body && req.headers['content-type'] != 'image/jpeg') {
     var bodyData = JSON.stringify(req.body);
-    proxyReq.setHeader('Content-Type','application/json');
+    // proxyReq.setHeader('Content-Type','application/json');
     proxyReq.setHeader('Content-Length', Buffer.byteLength(bodyData));
     proxyReq.write(bodyData);
   }
@@ -194,7 +194,8 @@ function fwd_to_service(req,res){fwd_to_service(req,res,null)}
 function fwd_to_service(req,res,head){
     params = parseRequest(req)  
     sname = params.service
-    is_fwd = params.object != null //req.params && 'object_id' in req.params 
+    is_get = req.method == 'GET'
+    is_fwd = params.object != null 
     is_fwd_store_perm = 'x-forwarded-koala-perm' in req.headers
     // fwdname = is_fwd ? sname + '/' + params.object : ''
     fwdname = is_fwd ?  params.object : ''
@@ -211,7 +212,7 @@ function fwd_to_service(req,res,head){
     resp = koalaNode.getResponsible(sname)
     
     //if it is a fwd, i am not the resp and i haven't registered it, ask permission from the resp
-    if (is_fwd  && resp.id != koalaNode.id && (sname in store.services) && !(fwdname in store.services) ){
+    if (is_fwd && is_get && resp.id != koalaNode.id && (sname in store.services) && !(fwdname in store.services) ){
         req.headers['x-forwarded-koala'] = koalaNode.meCompact()
         proxyWeb(req, res, getUrl(req.upgrade, resp.url, ''));
         return;
