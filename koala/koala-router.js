@@ -17,7 +17,7 @@ var expressWs = require('express-ws')(app);
 var http = require('http');
 var appserver = http.createServer(app);
 appserver.on('upgrade', function (req, socket, head) {
-   fwd_to_service(req, res, head)
+   fwd_to_service(req, res)
    // proxyWS(req, head, 'ws://192.168.56.1:4545');
 });
 
@@ -197,7 +197,7 @@ app.get('/', function (req, res) {
 function fwd_to_service(req,res){fwd_to_service(req,res,null)}
 
 
-function fwd_to_service(req,res,head){
+function fwd_to_service(req,res){
     params = parseRequest(req)  
     sname = params.service
     is_get = req.method == 'GET'
@@ -213,21 +213,24 @@ function fwd_to_service(req,res,head){
         service = {name:fwdname, type:'object', sname:'none', url:object_url} 
         req.url = getCallbackUrl(req)
         store.registerServices([service])
-        proxyWeb(req, res, getUrl(req.upgrade, service_sel.url, ''));
+        proxyRequest(req, res, getUrl(req.upgrade, service_sel.url, ''));
         return;    
     }
 
-    resp = koalaNode.getResponsible(sname)
+    // searchname = is_object && (resp.id == koalaNode.id || fwdname in store.services)? fwdname : sname;
+    searchname = is_object ? fwdname : sname;
+    resp = koalaNode.getResponsible(searchname)
     
     //if it is an object, i am not the resp and i haven't registered it, ask permission from the resp
     // if (is_object && is_get && resp.id != koalaNode.id && (sname in store.services) && !(fwdname in store.services) ){
     if (is_object && is_get && resp.id != koalaNode.id && !(fwdname in store.services) ){
         req.headers['x-forwarded-koala'] = koalaNode.meCompact()
-        proxyWeb(req, res, getUrl(req.upgrade, resp.url, ''));
+        // proxyWeb(req, res, getUrl(req.upgrade, resp.url, ''));
+        proxyRequest(req, res, getUrl(req.upgrade, resp.url, ''));
         return;
     }
 
-    searchname = is_object && (resp.id == koalaNode.id || fwdname in store.services)? fwdname : sname;
+    
     
     sel = selectInstance(searchname);
     if(sel) {
@@ -235,15 +238,13 @@ function fwd_to_service(req,res,head){
         trg = ''
         if(is_local){
             req.url = getCallbackUrl(req)
-            trg = is_object ? getUrl(req.upgrade, service_sel.url, '') : getUrl(req.upgrade, sel.url, '')
-            console.log(sname + ': ' + req.method + " " + getUrl(req.upgrade, sel.url, req.url) )
+            url = is_object ? service_sel.url : sel.url
+            trg = getUrl(req.upgrade, url, '')
+            console.log(sname + ': ' + req.method + " " + getUrl(req.upgrade, url, req.url) )
         }else{
             trg = getUrl(req.upgrade, sel.koala.url, '')
         }
-        if(req.upgrade)
-            proxyWS(req, head, trg)
-        else
-            proxyWeb(req, res, trg);
+        proxyRequest(req, res, trg);
     }else{
         if (resp.id == koalaNode.id){        
             if(is_object){
@@ -254,7 +255,7 @@ function fwd_to_service(req,res,head){
                     req.headers['x-forwarded-koala-perm'] = true;
                     service = {name:fwdname, type:'object', sname:'none', url:object_url, koala:senderKoala} 
                     store.registerServices([service])
-                    proxyWeb(req, res, getUrl(req.upgrade, senderKoala.url, ''));
+                    proxyRequest(req, res, getUrl(req.upgrade, senderKoala.url, ''));
                 }else{
                     //local object (register it as a service and forward)
                     // sel = selectInstance(sname)
@@ -262,7 +263,7 @@ function fwd_to_service(req,res,head){
                     service = {name:fwdname, type:'object', sname:'none', url:object_url} 
                     req.url = getCallbackUrl(req)
                     store.registerServices([service])
-                    proxyWeb(req, res, getUrl(req.upgrade, service_sel.url, ''));
+                    proxyRequest(req, res, getUrl(req.upgrade, service_sel.url, ''));
                 }
             }
             else
@@ -305,13 +306,22 @@ function findInfo(url, regex, static){
     return null    
 }
 
+
+function proxyRequest(req, res, trg)
+{
+    if(req.upgrade)
+        proxyWS(req, res, trg)
+    else
+        proxyWeb(req, res, trg);
+}
+
 function proxyWeb(req, res, trg)
 {
     proxy.web(req, res, { target: trg });
     // redirectReq(req, res, trg)
 }
 
-function proxyWS(req, head, trg)
+function proxyWS(req, res, trg)
 {
     proxy.ws(req, req.socket, { target: trg, ws:true });
     // redirectReq(req, res, trg)
