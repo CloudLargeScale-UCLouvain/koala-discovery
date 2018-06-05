@@ -49,8 +49,7 @@ var self = {
             if (this.services.hasOwnProperty(key)) {
                 instances = this.services[key]
                 for(var i=0; i < instances.length; i++){
-                    rn = instances[i].type == 'service' ? instances[i].name : instances[i].sname
-                    rp = koalaNode.getResponsible(rn)
+                    rp = koalaNode.getResponsible(instances[i].name)
                     if(rp.id == respid)
                         servs.push(instances[i])
                 }

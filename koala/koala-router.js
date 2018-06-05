@@ -207,7 +207,7 @@ function fwd_to_service(req,res,head){
     fwdname = is_object ?  params.object : ''
     service_sel = selectInstance(sname);
 
-    if(is_object_store_perm){
+    if(is_object_store_perm){ //permission granted
         // sel = selectInstance(sname)
         // service = {name:fwdname, type:'object', sname:sname, url:sel.url} 
         service = {name:fwdname, type:'object', sname:'none', url:object_url} 
@@ -219,8 +219,9 @@ function fwd_to_service(req,res,head){
 
     resp = koalaNode.getResponsible(sname)
     
-    //if it is a fwd, i am not the resp and i haven't registered it, ask permission from the resp
-    if (is_object && is_get && resp.id != koalaNode.id && (sname in store.services) && !(fwdname in store.services) ){
+    //if it is an object, i am not the resp and i haven't registered it, ask permission from the resp
+    // if (is_object && is_get && resp.id != koalaNode.id && (sname in store.services) && !(fwdname in store.services) ){
+    if (is_object && is_get && resp.id != koalaNode.id && !(fwdname in store.services) ){
         req.headers['x-forwarded-koala'] = koalaNode.meCompact()
         proxyWeb(req, res, getUrl(req.upgrade, resp.url, ''));
         return;
@@ -379,7 +380,6 @@ port = spt.length > 1 ? spt[1] : 8008
 
 
 appserver.listen(port, function(){
-// app.listen(port, function(){
     console.log('boot url: ' + boot_url)
     
     koalaNode = new koala.Node(koala_url)    
@@ -389,5 +389,4 @@ appserver.listen(port, function(){
     //     store.registerServices([{"name": "bobi", "host": "192.168.56.100", "port": "6379"}])
 
     console.log('Koala router listening on port:' + port)
-    // koalaNode.getInfo()
 });
