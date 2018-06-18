@@ -218,7 +218,7 @@ function fwd_to_service(req,res){
     }
 
     // searchname = is_object && (resp.id == koalaNode.id || fwdname in store.services)? fwdname : sname;
-    searchname = is_object ? fwdname : sname;
+    searchname = is_object && is_get ? fwdname : sname;
     resp = koalaNode.getResponsible(searchname)
     
     //if it is an object, i am not the resp and i haven't registered it, ask permission from the resp
