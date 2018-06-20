@@ -47,6 +47,8 @@ koala_host = '172.0.0.1'
 
 API_RT = '/api/rt'
 API_CLEAR = '/api/clear'
+API_LIST_ALL = '/api/list'
+API_LIST = '/api/list/:which'
 API_REGISTER = '/api/register'
 API_DEREGISTER = '/api/deregister'
 API_GET = '/api/get/:service'
@@ -57,6 +59,40 @@ API_GET_OBJECT_ALL = '/api/get/:service/object/:object/callback/:callback/*'
 app.get(API_REGISTER, function (req, res) {
   res.send('Register a service')
 }) 
+
+app.get(API_LIST_ALL, function (req, res) {
+  list(req, res, 'all')
+})
+
+app.get(API_LIST, function (req, res) {
+  list(req, res, req.params.which)
+}) 
+
+function list(req, res, which){
+    if (['all', 'local', 'responsible'].indexOf(which)<0){
+        res.send('Which option not supported!')
+    }
+    add_local = which == 'all' || which == 'local'
+    add_responsible = which == 'all' || which == 'responsible'
+
+    resp_servs = []
+    for (var key in store.services) {
+        if (store.services.hasOwnProperty(key)) {
+            instances = store.services[key]
+            for(var i=0; i < instances.length; i++){
+                resp = koalaNode.getResponsible(instances[i].name)
+                is_local = koalaNode.id == instances[i].koala.id 
+                is_resp = koalaNode.id == resp.id  
+                if(is_local && add_local)
+                    resp_servs.push(instances[i])
+                else if(is_resp && add_responsible)
+                    resp_servs.push(instances[i])
+            }
+        }
+    }
+    res.send(resp_servs)
+}
+
 
 app.get(API_CLEAR, function (req, res) {
   store.clearServices()
