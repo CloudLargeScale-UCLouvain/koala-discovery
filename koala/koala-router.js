@@ -204,7 +204,7 @@ app.get('/', function (req, res) {
                 // rn = instances[i].type == 'service' ? instances[i].name : instances[i].sname
                 resp = koalaNode.getResponsible(instances[i].name)
                 is_local = koalaNode.id == instances[i].koala.id ? 'local' : 'remote@'+instances[i].koala.id
-                is_resp = koalaNode.id == resp.id  ? 'responsible' : 'non responsible'
+                is_resp = koalaNode.id == resp.id  ? 'responsible' : 'responsible@'+resp.id
                 srvList += '<tr>'
                 srvList += '<td>' + instances[i].type + '</td>' +  
                 '<td><a target="blank" href=/api/get/'+instances[i].name+'>'+ instances[i].name + '</a></td> '+
@@ -431,8 +431,14 @@ appserver.listen(port, function(){
     koalaNode = new koala.Node(koala_url)    
     koalaNode.register()
 
-    // if(koalaNode.id == '8-88')
-    //     store.registerServices([{"name": "bobi", "host": "192.168.56.100", "port": "6379"}])
+    // if(koalaNode.id == '4-64')
+    //     store.registerServices([
+    //         {"name": "bobi", "host": "192.168.56.100", "port": "6379"}
+    //        ,{"name": "robi", "host": "192.168.56.100", "port": "6379"}
+    //        ,{"name": "dobi", "host": "192.168.56.100", "port": "6379"}
+    //        ,{"name": "zobi", "host": "192.168.56.100", "port": "6379"}
+    //         ])
+
 
     console.log('Koala router listening on port:' + port)
 });

@@ -22,7 +22,7 @@ var self = {
         if (instances == null)
             return false;
         for (var i = 0; i < instances.length; i++) {
-            if(instances[i].url == service.url)
+            if(instances[i].url == service.url && instances[i].koala.id == service.koala.id)
                 return true; 
         }
         return false;
@@ -48,10 +48,15 @@ var self = {
         for (var key in this.services) {
             if (this.services.hasOwnProperty(key)) {
                 instances = this.services[key]
-                for(var i=0; i < instances.length; i++){
-                    rp = koalaNode.getResponsible(instances[i].name)
-                    if(rp.id == respid)
+                rp = koalaNode.getResponsible(key)
+                if(rp.id == respid){
+                    for (var i = instances.length - 1; i >= 0; i--) {
                         servs.push(instances[i])
+                        if(koalaNode.id != instances[i].koala.id)
+                            instances.splice(i, 1);
+                    }
+                    if(this.services[key].length == 0)
+                        delete this.services[key]
                 }
             }
         }

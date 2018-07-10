@@ -29,11 +29,11 @@ var self = {
         this.join = function (){
             console.log('Node ' + this.id +' joining using ' + this.boot_node.id);
             this.rt.neighbors.push(this.boot_node)
-            this.sendRT()
+            this.sendRT(this.boot_node.url)
         }
 
-        this.sendRT = function (){
-            request.post('http://'+this.boot_node.url+'/api/rt', { json: {sender: this.me(), rt:this.rt, data:[]} },
+        this.sendRT = function (url){
+            request.post('http://'+url+'/api/rt', { json: {sender: this.me(), rt:this.rt, data:[]} },
                 function (error, response, body) {
                 if (!error && response.statusCode == 200) {
                     mynode.onReceiveRT(body)
@@ -45,18 +45,23 @@ var self = {
         this.onReceiveRT = function (body){
             rec_rt = body.rt
             rec_rt.neighbors.push(body.sender)
-            is_sender_neighbor = false
+            // is_sender_neighbor = false
             store.registerServices(body.data)
-
+            newNeigs=[] //new neighs except sender
 
             for(i in rec_rt.neighbors){
                 n = rec_rt.neighbors[i]
                 if(n.id == this.id || this.isNeighbor(n)) continue;
-                if(n.id == body.sender.id) 
-                    is_sender_neighbor = true
+                if(n.id != body.sender.id) 
+                    newNeigs.push(n)
+                //     is_sender_neighbor = true
                 this.rt.neighbors.push(n)
                 console.log('Got neighbor: ' + n.id)
             }
+
+            for(i in newNeigs)
+                this.sendRT(newNeigs[i].url)
+
             return store.getServicesForResponsable(body.sender.id)
         }
 
@@ -83,6 +88,7 @@ var self = {
                     ret = nodes[i]
                 }
             }
+            // console.log('hash for ' + service +' is ' + sid +', resp: ' + ret.id)
             return ret;
 
         }
