@@ -236,7 +236,6 @@ function fwd_to_service(req,res){fwd_to_service(req,res,null)}
 function fwd_to_service(req,res){
     params = parseRequest(req)  
     sname = params.service
-    is_get = req.method == 'GET'
     is_object = params.object != null 
     is_object_store_perm = 'x-forwarded-koala-perm' in req.headers
     object_url = 'xxx'
@@ -254,12 +253,12 @@ function fwd_to_service(req,res){
     }
 
     // searchname = is_object && (resp.id == koalaNode.id || fwdname in store.services)? fwdname : sname;
-    searchname = is_object && is_get ? fwdname : sname;
+    searchname = is_object  ? fwdname : sname;
     resp = koalaNode.getResponsible(searchname)
     
     //if it is an object, i am not the resp and i haven't registered it, ask permission from the resp
-    // if (is_object && is_get && resp.id != koalaNode.id && (sname in store.services) && !(fwdname in store.services) ){
-    if (is_object && is_get && resp.id != koalaNode.id && !(fwdname in store.services) ){
+    // if (is_object && resp.id != koalaNode.id && (sname in store.services) && !(fwdname in store.services) ){
+    if (is_object && resp.id != koalaNode.id && !(fwdname in store.services) ){
         req.headers['x-forwarded-koala'] = koalaNode.meCompact()
         // proxyWeb(req, res, getUrl(req.upgrade, resp.url, ''));
         proxyRequest(req, res, getUrl(req.upgrade, resp.url, ''));
