@@ -4,7 +4,7 @@ const dns = require('dns-sync');
 var server = named.createServer();
 
 ip = '0.0.0.0'
-port = 5354
+port = 53
 ifaceIp = ''
 server.listen(port, ip, function() {
     console.log('DNS server started on port '+ port);
@@ -32,13 +32,20 @@ server.listen(port, ip, function() {
 server.on('query', function(query) {
   var domain = query.name();
   // var record = new named.SOARecord(domain, {serial: 12345, ttl: 300});
-   console.log('a query for ' + domain +'\n')
+  console.log('a query for ' + domain + 'from ' + query._client.address+ '\n')
   var ds = domain.split('.');
   var record = ''
-  if(ds.length >= 2 && ds[1] == 'koala' && ds[2] == 'dev'){
+  if(ds.length >= 2 && ds[1] == 'sharelatex' && ds[2] == 'dev'){
     record = new named.ARecord(ifaceIp);
   }else{
-    record = new named.ARecord(String(dns.resolve(domain)));
+    var type = 'A'
+    if(query._question.type != 1)
+     type = 'SOA'
+    res = dns.resolve(domain, type) 
+    if(query._question.type == 1)
+      record = new named.ARecord(String(res));
+    else 
+      record = new named.SOARecord(domain, res);
   }
   query.addAnswer(domain, record, 300);
   server.send(query);
