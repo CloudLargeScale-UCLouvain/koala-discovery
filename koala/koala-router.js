@@ -32,19 +32,6 @@ proxy.on('proxyReq', function(proxyReq, req, res, options) {
 });
 
 
-nr_dc = 10
-nr_nodes_x_dc = 100
-// services={}
-koalaNode={}
-boot_url = 'http://localhost:8007'
-syncer_url = 'http://localhost:8005'
-koala_url = 'localhost:8008'
-
-
-id = Math.floor(Math.random() * nr_nodes_x_dc)
-dc = '0'
-koala_host = '172.0.0.1'
-
 API_RT = '/api/rt'
 API_CLEAR = '/api/clear'
 API_LIST_ALL = '/api/list'
@@ -426,6 +413,20 @@ function selectInstance(sname){
     }
     return null;
 }
+
+
+nr_dc = 10
+nr_nodes_x_dc = 100
+
+koalaNode={}
+boot_url = 'http://localhost:8007'
+syncer_url = 'http://localhost:8005'
+koala_url = 'localhost:8008'
+
+
+// id = Math.floor(Math.random() * nr_nodes_x_dc)
+// dc = '0'
+
 
 
 if(process.env.KOALA_BOOT_URL) boot_url = process.env.KOALA_BOOT_URL
