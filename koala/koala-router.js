@@ -420,7 +420,7 @@ nr_nodes_x_dc = 100
 
 koalaNode={}
 boot_url = 'http://localhost:8007'
-syncer_url = 'http://localhost:8005'
+syncer_url = 'http://localhost:8006'
 koala_url = 'localhost:8008'
 
 

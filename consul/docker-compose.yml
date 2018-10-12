@@ -1,16 +1,39 @@
 version: '3'
 services:
-  consul:
-    command: "-server -bootstrap -node consul -advertise ${HOST_IP} -config-file /etc/consul.d/config.json"
-    image: progrium/consul:latest
-    container_name: consul
+  consul-server1:
+    image: consul:latest
+    command: "agent -server -bootstrap -datacenter dc1 -node server1 -ui -client 0.0.0.0 "
     ports:
       - "8300:8300"
       - "8400:8400"
       - "8500:8500"
       - "8600:53/udp"
+  
+  # consul-client1:
+  #   image: consul:latest
+  #   hostname: "consul-client2"
+  #   command: "agent -join consul-server1 -datacenter dc1 -node client1 -disable-host-node-id"
+  #   depends_on: 
+  #     - consul-server1
+
+  # consul-server2:
+  #   image: consul:latest
+  #   command: "agent -server -bootstrap -join-wan consul-server1 -datacenter dc2 -node server2 -client 0.0.0.0"
+  #   depends_on: 
+  #     - consul-server1
+
+  # consul-client2:
+  #   image: consul:latest
+  #   hostname: "consul-client2"
+  #   command: "agent -join consul-server2 -datacenter dc2 -node client2 -disable-host-node-id"
+  #   depends_on: 
+  #     - consul-server2
+
+  registrator:
+    command: consul://consul-server1:8500
+    image: gliderlabs/registrator:latest
+    container_name: registrator
+    depends_on:
+    - consul-server1
     volumes:
-      - "./consul_watches_config.json:/etc/consul.d/config.json"
-      - "./script.sh:/tmp/script.sh"
-    environment:
-      - HOST_IP
+    - "/var/run/docker.sock:/tmp/docker.sock"

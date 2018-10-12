@@ -178,9 +178,11 @@ function force_vector(cord1, cord2, err){
   }
 
   while(equal){ //generate random vector 
-    for(var i = 0; i < force_vect.length; i++)
+    for(var i = 0; i < force_vect.length; i++){
       force_vect[i] =  Math.random()*2-1;
-        if (force_vect[i] != 0) equal = false;
+      if (force_vect[i] != 0) 
+        equal = false;
+    }
   }
 
   var length = euclidean_dist(zero_vect, force_vect);

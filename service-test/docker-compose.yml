@@ -1,7 +1,8 @@
 version: '3'
 services:
-    test:
-        build: .
-        privileged: true
-        ports:
-            - "3001:3001"
+  test:
+    build: .
+    container_name: service-test
+    privileged: true
+    ports:
+        - "3001:3001"
