@@ -83,12 +83,11 @@ function fwd_to_service(req,res){
     var params = parseRequest(req)  
     var sname = params.service
     var is_object = params.object != null 
-    var object_url = 'xxx'
-    var fwdname = is_object ?  params.object : ''
-    var service_sel = selectInstance(sname);
+    var objname = is_object ?  params.object : ''
+    var service_sel = is_object ? selectInstance(sname) : '';
     var url = ''
 
-    var searchname = is_object  ? fwdname : sname;
+    var searchname = is_object  ? objname : sname;
     
     var sel = selectInstance(searchname);
     if(sel) {
@@ -96,16 +95,16 @@ function fwd_to_service(req,res){
         req.url = getCallbackUrl(req)
         url = is_object ? service_sel.url : sel.url
         trg = getUrl(req.upgrade, url, '')
-        console.log('LOCAL: '+sname + '('+fwdname+'): ' + req.method + " " + getUrl(req.upgrade, url, req.url) )
+        console.log('LOCAL: '+sname + '('+objname+'): ' + req.method + " " + getUrl(req.upgrade, url, req.url) )
         proxyRequest(req, res, trg);
     }
     else{
         if(is_object){
-            var service = {name:fwdname, type:'object', sname:'none', url:service_sel.url} 
+            var service = {name:objname, type:'object', sname:'none', url:service_sel.url} 
             req.url = getCallbackUrl(req)
             registerServices([service])
             url = getUrl(req.upgrade, service_sel.url, '')
-            console.log('LOCAL: '+sname + '('+fwdname+'): ' + req.method + " " + getUrl(req.upgrade, service_sel.url, req.url) )
+            console.log('LOCAL: '+sname + '('+objname+'): ' + req.method + " " + getUrl(req.upgrade, service_sel.url, req.url) )
             proxyRequest(req, res, url);
         }
         else
@@ -244,9 +243,9 @@ function registerRedisToSyncer(){
 }
 
 
-var proxy_url = 'http://localhost:8700'
-var syncer_url = 'http://localhost:8006'
-var consul_url = 'http://localhost:8500'
+var proxy_url = 'http://172.17.0.1:8700'
+var syncer_url = 'http://172.17.0.1:8006'
+var consul_url = 'http://172.17.0.1:8500'
 
 
 if(process.env.CONSUL_URL) consul_url = process.env.CONSUL_URL
