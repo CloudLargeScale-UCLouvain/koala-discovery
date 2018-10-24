@@ -1,14 +1,13 @@
 'use strict';
 
 const express = require('express')
-const bodyParser   = require('body-parser')
 const httpProxy = require('http-proxy');
 var request = require('request');
 var srequest = require('sync-request');
 
 const app = express()
-app.use(bodyParser.urlencoded());
-app.use(bodyParser.json());
+app.use(express.urlencoded({extended: true}));
+app.use(express.json());
 app.use(express.static('client'))
 var proxy = httpProxy.createProxyServer();
 const url = require('url');

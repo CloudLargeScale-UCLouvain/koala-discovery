@@ -1,34 +1,38 @@
 'use strict';
 const express = require('express')
 const http = require('http')
-const bodyParser   = require('body-parser')
 var request = require('request');
 var os = require('os');
+var responseTime = require('response-time')
+var pcap = require('pcap')
 
 const app = express()
 var server = http.createServer(app)
 
-app.use(bodyParser.urlencoded());
-app.use(bodyParser.json());
+
+app.use(express.urlencoded({extended: true}));
+app.use(express.json());
 
 var friends=[]
 
-
+var startat=0
 app.post('/ping', function (req, res) {
   var url = req.body.url.replace(/\/$/, '');
   add_friend(url)
 
+  startat = process.hrtime()
   request.post({url:url+'/onping', time:'true', json: {sender: myurl, vivaldi:myvivaldi.dynamic} },
-            function (error, response, body) {
-                if (!error && response.statusCode == 200) {
-                    var sender = body.sender;
-                    var remote_vivaldi = body.vivaldi;
-                    var rtt = response.timings.connect;
-                    update(remote_vivaldi, rtt)
-                    // console.log('rtt: %s', rtt)
-                }else 
-                    console.log(error)
-            });
+    function (error, response, body) {
+        if (!error && response.statusCode == 200) {
+            var sender = body.sender;
+            var remote_vivaldi = body.vivaldi;
+            var rtt = response.timings.connect;
+            lastRTT = rtt;
+            update(remote_vivaldi, rtt)
+            // console.log('rtt: %s', rtt)
+        }else 
+            console.log(error)
+    });
 
   res.send('ok') 
 })
@@ -81,30 +85,34 @@ app.get('/', function (req, res) {
 
 // var iface = "enx106530cd1088"
 // var iface = "wlp2s0"
-var iface = "lo"
-// var iface = "eth0"
+// var iface = "lo"
+var iface = "eth0"
 
-var port = 0
+
+var port = 8880
 var ip = ''
 var myurl = ''
 var myvivaldi = {dynamic:{cords:[0,0,0], uncertainty:1000}, static:{uncertainty_factor:0.25, correction_factor:0.25}}
 
-server.on('connection', (socket) => {
-  socket.on('connect', () => {console.log('socket connected');})
-  socket.on('ready', () => {console.log('socket ready');})
-  socket.on('lookup', (err, add, fam, host) => {console.log('socket lookup');})
-  socket.on('data', (buff) => {console.log('socket data');})
-  socket.on('end', () => {console.log('socket end');})
-  console.log('connection');    
-});
 
 
-// server.on('request', (req, res) => {
-//   console.log('got a request');
+
+
+// server.on('connection', (socket) => {
+  // socket.on('connect', () => {console.log('socket connected');})
+  // socket.on('ready', () => {console.log('socket ready');})
+  // socket.on('lookup', (err, add, fam, host) => {console.log('socket lookup');})
+  // socket.on('data', (buff) => {console.log('socket data');})
+  // socket.on('end', () => {console.log('socket end');})
+  // console.log('ready to send rtt');    
+  // if(lastRTT > 0)
+  //   socket.write('HTTP/1.1 200 OK\r\n'+
+  //              'RTT: '+lastRTT+'\r\n')
+  //   lastRTT=-1;
 // });
 
 
-
+if(process.env.PORT) port = process.env.PORT
 
 server.listen(port, function(){
   var ifaces = os.networkInterfaces();
@@ -112,6 +120,26 @@ server.listen(port, function(){
   port = server.address().port
   myurl = 'http://'+ip+':'+port;
   console.log('Vivaldi started at: ' + myurl)
+
+  var pcapsession = pcap.createSession(iface, 'port ' + port);
+  var tcp_tracker = new pcap.TCPTracker()
+  
+  tcp_tracker.on('session', function (session) {
+    // console.log("Start of session between " + session.src_name + " and " + session.dst_name);
+    session.on('end', function (session) {
+        // console.log("End of TCP session between " + session.src_name + " and " + session.dst_name);
+        var stats = session.session_stats();
+        console.log('connect ' + (stats.connect_duration*1000))
+    });
+  });
+
+
+  pcapsession.on('packet', function (raw_packet) {
+    var packet = pcap.decode.packet(raw_packet);
+    tcp_tracker.track_packet(packet);
+  });
+
+
 });
 
 
@@ -192,3 +220,4 @@ function force_vector(cord1, cord2, err){
   }
   return force_vect;
 }
+
