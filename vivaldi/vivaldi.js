@@ -4,7 +4,6 @@ const http = require('http')
 const urlparser = require('url');
 var request = require('request');
 var os = require('os');
-var responseTime = require('response-time')
 var pcap = require('pcap')
 
 
@@ -27,12 +26,13 @@ app.post('/ping', function (req, res) {
         if (!error && response.statusCode == 200) {
             var sender = body.sender;
             var remote_vivaldi = body.vivaldi;
-            var rtt = response.timings.connect;
-            rtt -= 1 //remove some additional latency
+            myLport = response.client.localPort;
+            // var rtt = response.timings.connect;
+            // rtt -= 1 //remove some additional latency
             // rtt -= getRand(0.6, 1.3); //remove some additional latency
             
             add_friend({url:url,vivaldi:remote_vivaldi})
-            update(remote_vivaldi, rtt)
+            // update(remote_vivaldi, rtt)
             
         }else 
             console.log(error)
@@ -103,15 +103,15 @@ app.get('/', function (req, res) {
 
 // var iface = "enx106530cd1088"
 // var iface = "wlp2s0"
-// var iface = "lo"
-var iface = "eth0"
+var iface = "lo"
+// var iface = "eth0"
 
 
 var port = 0
 var ip = ''
 var myurl = ''
 var myvivaldi = {dynamic:{cords:[0,0,0], uncertainty:1000}, static:{uncertainty_factor:0.25, correction_factor:0.25}}
-
+var myLport = 0;
 
 
 if(process.env.PORT) port = process.env.PORT
@@ -124,18 +124,39 @@ server.listen(port, function(){
   myurl = add_prot(ip+':'+port);
   console.log('Vivaldi started at: ' + myurl)
 
-  var pcapsession = pcap.createSession(iface, 'port ' + port);
+  // var pcapsession = pcap.createSession(iface, 'port ' + port);
+  var no_ports = [9229, 9329, 9222, 9230, 5037]
+  var filter = 'tcp'
+  for(var i in no_ports)
+    filter += ' and not port ' + no_ports[i]
+  // console.log(filter)
+
+  var pcapsession = pcap.createSession(iface, filter);
   var tcp_tracker = new pcap.TCPTracker()
   
   tcp_tracker.on('session', function (session) {
-    // console.log("Start of session between " + session.src_name + " and " + session.dst_name);
+    var src = urlparser.parse(add_prot(session.src_name))
+    var dst = urlparser.parse(add_prot(session.dst_name))
+    var srcPort = src.port
+    var dstPort = dst.port
+    if (srcPort != myLport  && dstPort != port) return;
+    // console.log("Start of session between " + srcPort+ " and " + dstPort);
     session.on('end', function (session) {
         // console.log("End of TCP session between " + session.src_name + " and " + session.dst_name);
         var stats = session.session_stats();
         var rtt = stats.connect_duration*1000;
-        var friend = get_friend_from_remotePort(session.src_name)
-        if(friend != null){
-          update(friend.vivaldi, rtt)
+
+        if(srcPort == myLport){
+          var dstFriend = get_friend(add_prot(session.dst_name));
+          if(dstFriend != null)
+            // console.log('onsend: update with ' + rtt + ' for ' + dstFriend.url)  
+            update(dstFriend.vivaldi, rtt)
+        }else{
+          var srcFriend = get_friend_from_remotePort(session.src_name)  
+          if(srcFriend != null){
+            // console.log('onreceive: update with ' + rtt + ' for ' + srcFriend.url)  
+            update(srcFriend.vivaldi, rtt)
+          }  
         }
         // console.log('connect ' + (stats.connect_duration*1000) + ' state ' + session.state)
     });

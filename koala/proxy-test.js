@@ -21,6 +21,12 @@ proxy.on('proxyReq', function(proxyReq, req, res, options) {
   }
 });
 
+proxy.on('proxyRes', function (proxyRes, req, res) {
+  console.log('RAW Response from the target', JSON.stringify(proxyRes.headers, true, 2));
+});
+
+
+
 app.post('/api/get/*', function (req, res) {
 	req.url = req.url.split('service')[1]
 	proxy.web(req, res, {target: getUrl('localhost', '3000', '') });  
@@ -29,6 +35,7 @@ app.post('/api/get/*', function (req, res) {
 
 app.get('/api/get/*', function (req, res) {
 	req.url = req.url.split('service')[1]
+    req.headers['vivaldi'] = 'leshi i dies'
 	proxy.web(req, res, {target: getUrl('localhost', '3000', '') });  
 })
 

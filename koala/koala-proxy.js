@@ -1,17 +1,23 @@
 const express = require('express')
-const bodyParser   = require('body-parser')
+// const bodyParser   = require('body-parser')
 // const forward = require('http-forward')
+
 const httpProxy = require('http-proxy');
-var koala = require('./koala');
-var store = require('./store');
 var request = require('request');
+const urlparser = require('url');
+var pcap = require('pcap')
+
+var store = require('./store');
+var vivaldi = require('./vivaldi');
+var utils = require('./utils');
+var koala = require('./koala');
 
 const app = express()
-app.use(bodyParser.urlencoded());
-app.use(bodyParser.json());
+app.use(express.urlencoded({extended: true}));
+app.use(express.json());
 app.use(express.static('client'))
 var proxy = httpProxy.createProxyServer();
-var expressWs = require('express-ws')(app);
+// var expressWs = require('express-ws')(app);
 
 
 var http = require('http');
@@ -101,11 +107,11 @@ app.post(API_REGISTER, function (req, res) {
 })
 
 
-
 app.post(API_RT, function (req, res) {
   //do stuff and send back the rt
+  req.body.sender['rport'] = req.client.remotePort;
   neighServs = koalaNode.onReceiveRT(req.body);
-  res.json({sender: koalaNode.me(), rt:koalaNode.rt, data:neighServs})
+  res.json({sender: koalaNode.me(), data:neighServs})
 })
 
 
@@ -159,9 +165,6 @@ app.delete(API_GET_ALL, function (req, res) {
 })
 
 
-
-
-
 app.get('/version', function (req, res) {
     res.send('Koala v:0.1')
 })
@@ -180,6 +183,8 @@ app.get('/', function (req, res) {
 
     srvList = '<script src="home.js"></script>'
     srvList += '<h2>Koala instance: ' + koalaNode.id + '</h2><br>'
+    srvList += 'Coordinates = ' + vivaldi.cordsToString(koalaNode.vivaldi.cords) + '<br>uncertainty = ' + koalaNode.vivaldi.uncertainty.toFixed(2) + '<br><br>'
+
     srvList += '<div id="srvs">'
     if (Object.keys(store.services).length > 0) 
         srvList += '<table style="margin: 0 auto;text-align:center"><tr><th>Type</th><th>Name</th><th>URL</th><th>Location</th><th>Responsibility</th></tr>'
@@ -210,7 +215,7 @@ app.get('/', function (req, res) {
     if(koalaNode.rt.neighbors.length > 0){
         neigsList = 'Neighbors: <br><table style="margin: 0 auto;text-align:center"><tr><th>ID</th><th>URL</th></tr>'
         for(var i = 0; i < koalaNode.rt.neighbors.length; i++)
-            neigsList += '<tr><td>'+koalaNode.rt.neighbors[i].id+'</td><td><a target="blank" href="http://'+koalaNode.rt.neighbors[i].url+'">'+ koalaNode.rt.neighbors[i].url +'</a></td></tr>'
+            neigsList += '<tr><td>'+koalaNode.rt.neighbors[i].id+'</td><td><a target="blank" href="'+koalaNode.rt.neighbors[i].url+'">'+ koalaNode.rt.neighbors[i].url +'</a></td><td>'+vivaldi.cordsToString(koalaNode.rt.neighbors[i].vivaldi.cords)+'</td></tr>'
     }
     res.send('<div style="text-align:center">'+srvList + '<br><br>'+ neigsList +'</div>')
 
@@ -303,7 +308,7 @@ function fwd_to_service(req,res){
         }else{
             url = getUrl(req.upgrade, resp.url, '')
             console.log('FWD: '+sname + '('+fwdname+'): ' + req.method + " " + url )
-            proxyWeb(req, res, url);
+            proxyRequest(req, res, url);
         }
     }
     
@@ -421,9 +426,9 @@ nr_nodes_x_dc = 100
 koalaNode={}
 boot_url = 'http://localhost:8007'
 syncer_url = 'http://localhost:8006'
-koala_url = 'localhost:8008'
+koala_url = 'http://localhost:8008'
 
-
+var iface = "lo"
 // id = Math.floor(Math.random() * nr_nodes_x_dc)
 // dc = '0'
 
@@ -432,9 +437,11 @@ koala_url = 'localhost:8008'
 if(process.env.KOALA_BOOT_URL) boot_url = process.env.KOALA_BOOT_URL
 if(process.env.KOALA_URL) koala_url = process.env.KOALA_URL
 if(process.env.SYNCER_URL) syncer_url = process.env.SYNCER_URL
-spt = koala_url.split(':')
-koala_host = spt[0]
-port = spt.length > 1 ? spt[1] : 8008
+if(process.env.IFACE) iface = process.env.IFACE
+
+var prs = urlparser.parse(koala_url);
+var koala_host = prs.hostname
+var port = prs.port
 
 
 appserver.listen(port, function(){
@@ -442,6 +449,30 @@ appserver.listen(port, function(){
     
     koalaNode = new koala.Node(koala_url)    
     koalaNode.register()
+
+
+    var pcapsession = pcap.createSession(iface, 'port ' + port);
+    var tcp_tracker = new pcap.TCPTracker()
+
+    tcp_tracker.on('session', function (session) {
+        // console.log("Start of session between " + session.src_name + " and " + session.dst_name);
+        session.on('end', function (session) {
+            // console.log("End of TCP session between " + session.src_name + " and " + session.dst_name);
+            var stats = session.session_stats();
+            var rtt = stats.connect_duration*1000;
+            var neighbor = koalaNode.getNeighborFromURL(session.src_name);
+            if(neighbor != null){
+              vivaldi.update(neighbor.vivaldi, rtt)
+            }
+            // console.log('connect ' + (stats.connect_duration*1000) + ' state ' + session.state)
+        });
+    });
+
+    pcapsession.on('packet', function (raw_packet) {
+        var packet = pcap.decode.packet(raw_packet);
+        tcp_tracker.track_packet(packet);
+    });
+
 
     // if(koalaNode.id == '4-64')
     //     store.registerServices([
@@ -452,5 +483,5 @@ appserver.listen(port, function(){
     //         ])
 
 
-    console.log('Koala router listening on port:' + port)
+    console.log('Koala proxy running at: ' + koala_url)
 });

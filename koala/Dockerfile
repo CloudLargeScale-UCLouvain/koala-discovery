@@ -6,9 +6,10 @@ RUN npm install express http-proxy djb2 express-ws;\
 RUN mkdir koala
 
 ADD koala-boot.js /koala
-ADD koala-router.js /koala
+ADD koala-proxy.js /koala
 ADD koala.js /koala
 ADD store.js /koala
+ADD utils.js /koala
 ADD client /koala
 ADD koala.sh /koala
 
