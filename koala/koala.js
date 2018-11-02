@@ -13,11 +13,10 @@ var self = {
         this.rt = {neighbors:[], successors:[], predecessors:[], longlinks:[]}
         this.boot_node = {};
         this.vivaldi = vivaldi.myvivaldi.dynamic;
+        this.rPort = 0;
         this.register = function (){
             request.post(
-            { url: boot_url+'/api/get',
-             time: true,
-             json: this.me()},
+            { url: boot_url+'/api/get', json: this.me()},
             function (error, response, body) {
                 if (!error && response.statusCode == 200) {
                     if(body.id == mynode.id){
@@ -39,19 +38,22 @@ var self = {
         }
 
         this.sendRT = function (url){
-            request.post({url:url+'/api/rt', time:true, json: {sender: this.me(), data:[]}},
+            var that = this;
+            request.post({url:url+'/api/rt', json: {sender: this.me(), data:[]}},
                 function (error, response, body) {
-                if (!error && response.statusCode == 200) {
-                    var rtt = response.timings.connect;
-                    rtt -= 1 //remove some additional latency
-                    var senderVivaldi = body.sender.vivaldi;
-                    mynode.onReceiveRT(body)
+                    if (!error && response.statusCode == 200) {
+                        // var rtt = response.timings.connect;
+                        // rtt -= 1 //remove some additional latency
+                        that.rPort = response.client.localPort;
+                        // var senderVivaldi = body.sender.vivaldi;
+                        body.sender['rPort'] = response.client.remotePort;
+                        mynode.onReceiveRT(body)
 
-                    vivaldi.update(senderVivaldi, rtt);
-                    console.log('rtt: ' + rtt)
-                }else 
-                    console.log(error)
-            });
+                        // vivaldi.update(senderVivaldi, rtt);
+                        // console.log('rtt: ' + rtt)
+                    }else 
+                        console.log(error)
+                });
         } 
 
         this.onReceiveRT = function (body){
@@ -79,22 +81,26 @@ var self = {
             return store.getServicesForResponsable(body.sender.id)
         }
 
-        this.isNeighbor = function (rn){
-            for(i in this.rt.neighbors)
-                if(this.rt.neighbors[i].id == rn.id)
-                    return true
-            return false; 
-        }
-
-        this.getNeighborFromURL = function(url){
-            var prs = urlparser.parse(utils.addProt(url));
+      
+        this.getNeighborFromURL = function(url, useRemotePort){
+            var prs = urlparser.parse(url);
             var host  = prs.hostname; 
-            var rport = prs.port;
+            var port = prs.port;
+            var samePort = false;
             for(var i=0; i < this.rt.neighbors.length; i++){
                 prs = urlparser.parse(this.rt.neighbors[i].url);
-                if(utils.sameHost(prs.hostname, host) && this.rt.neighbors[i].rport == rport)
+                samePort = useRemotePort ? this.rt.neighbors[i].rPort == port : prs.port == port;
+                if(utils.sameHost(prs.hostname, host) && samePort)
                     return this.rt.neighbors[i];   
             }
+            return null;
+        }
+
+        this.getNeighborFromID = function(id){
+            for(var i=0; i < this.rt.neighbors.length; i++)
+                if(this.rt.neighbors[i].id == id)
+                    return this.rt.neighbors[i];   
+            
             return null;
         }
 
@@ -102,7 +108,7 @@ var self = {
             for(i in this.rt.neighbors){
                 if(this.rt.neighbors[i].id == n.id){
                     //update
-                    this.rt.neighbors[i]['rport'] = n['rport']; 
+                    this.rt.neighbors[i]['rPort'] = n['rPort']; 
                     //not sure if you should update all the time (maybe old coords)
                     if(this.rt.neighbors[i].vivaldi.uncertainty > n.vivaldi.uncertainty)
                         this.rt.neighbors[i]['vivaldi'] = n['vivaldi']; 

@@ -37,6 +37,15 @@ proxy.on('proxyReq', function(proxyReq, req, res, options) {
   }
 });
 
+proxy.on('proxyRes', function (proxyRes, req, res) {
+  koalaNode.rPort = proxyRes.client.localPort;
+  readPiggyback(proxyRes, req.client.remotePort);
+  // console.log('i am sendong on :'  + koalaNode.rPort)
+  // console.log('i am receivng on :'  + req.client.remotePort)
+  // console.log('RAW Response from the target', JSON.stringify(proxyRes.headers, true, 2));
+});
+
+
 
 API_RT = '/api/rt'
 API_CLEAR = '/api/clear'
@@ -109,7 +118,7 @@ app.post(API_REGISTER, function (req, res) {
 
 app.post(API_RT, function (req, res) {
   //do stuff and send back the rt
-  req.body.sender['rport'] = req.client.remotePort;
+  req.body.sender['rPort'] = req.client.remotePort;
   neighServs = koalaNode.onReceiveRT(req.body);
   res.json({sender: koalaNode.me(), data:neighServs})
 })
@@ -167,6 +176,23 @@ app.delete(API_GET_ALL, function (req, res) {
 
 app.get('/version', function (req, res) {
     res.send('Koala v:0.1')
+})
+
+app.get('/redirect/:koala', function (req, res) {
+    var koalaID = req.params.koala;
+    var neigh = koalaNode.getNeighborFromID(koalaID);
+    if(neigh != null){
+        writePiggyback(req)
+        req.url = '/onredirect'
+        proxyRequest(req, res, getUrl(req.upgrade, neigh.url, ''));
+    }else
+        res.send('Neighbor does not exist')
+})
+
+app.get('/onredirect', function (req, res) {
+    readPiggyback(req, req.client.remotePort);
+    writePiggyback(res);
+    res.send('Redrection answer!!')
 })
 
 
@@ -315,6 +341,25 @@ function fwd_to_service(req,res){
 }
 
 
+function readPiggyback(req, rPort){
+    if(!('piggyback' in req.headers)) return;
+    var piggyback = JSON.parse(req.headers['piggyback']) 
+    var sender = koalaNode.getNeighborFromID(piggyback.id)
+    if(sender != null){ //update sender vivaldi
+        sender.vivaldi = piggyback.vivaldi;
+        sender.rPort =  rPort;
+    }
+}
+
+function writePiggyback(reqOrRes){
+    var piggyback = {id: koalaNode.id ,vivaldi:koalaNode.vivaldi}
+    var jsonPb = JSON.stringify(piggyback);
+    if('baseUrl' in reqOrRes) //stupid way to see if it is a req or a res
+        reqOrRes.headers['piggyback'] = jsonPb;
+    else
+        reqOrRes.set('piggyback', jsonPb);
+
+}
 
 
 function parseRequest(req){
@@ -373,21 +418,21 @@ function redirectReq(req, res, trg) //req is for compatibility with proxyWeb
     res.redirect(trg);
 }
 
-function fwdServiceResponse(error, response, body){
-    console.log('miao')
-}
+// function fwdServiceResponse(error, response, body){
+//     console.log('miao')
+// }
 
 function getApiUrl(url, m){
     return 'http://'+url+'/api/'+m;
 }
 
 function getUrl(ws, url, m){
-    prot = 'http'
+    var lurl = url
     if(ws) 
-        prot = 'ws'
+        lurl = url.replace('http://','ws://')
     if(m && m.length > 0)
         m = m.startsWith('/') ? m : '/'+m;
-    return prot+'://'+url+m;
+    return lurl+m;
 }
 
 
@@ -443,26 +488,44 @@ var prs = urlparser.parse(koala_url);
 var koala_host = prs.hostname
 var port = prs.port
 
-
 appserver.listen(port, function(){
     console.log('boot url: ' + boot_url)
     
     koalaNode = new koala.Node(koala_url)    
     koalaNode.register()
 
+    var chrome_ports = [9229, 9329, 9222, 9230, 5037]
+    var filter = 'tcp'
+    for(var i in chrome_ports)
+        filter += ' and not port ' + chrome_ports[i]
 
-    var pcapsession = pcap.createSession(iface, 'port ' + port);
+    var pcapsession = pcap.createSession(iface, filter);
     var tcp_tracker = new pcap.TCPTracker()
 
     tcp_tracker.on('session', function (session) {
         // console.log("Start of session between " + session.src_name + " and " + session.dst_name);
+        var src = urlparser.parse(utils.addProt(session.src_name))
+        var dst = urlparser.parse(utils.addProt(session.dst_name))
+        var srcPort = src.port
+        var dstPort = dst.port
+        if (srcPort != koalaNode.rPort && dstPort != port) return;
+        
         session.on('end', function (session) {
             // console.log("End of TCP session between " + session.src_name + " and " + session.dst_name);
             var stats = session.session_stats();
             var rtt = stats.connect_duration*1000;
-            var neighbor = koalaNode.getNeighborFromURL(session.src_name);
-            if(neighbor != null){
-              vivaldi.update(neighbor.vivaldi, rtt)
+            // console.log('rtt : ' + rtt)
+            if(srcPort == koalaNode.rPort){
+              var dstFriend = koalaNode.getNeighborFromURL(utils.addProt(session.dst_name), false);
+              if(dstFriend != null)
+                // console.log('onsend: update with ' + rtt + ' for ' + dstFriend.url)  
+                vivaldi.update(dstFriend.vivaldi, rtt)
+            }else{
+              var srcFriend = koalaNode.getNeighborFromURL(utils.addProt(session.src_name), true)  
+              if(srcFriend != null){
+                // console.log('onreceive: update with ' + rtt + ' for ' + srcFriend.url)  
+                vivaldi.update(srcFriend.vivaldi, rtt)
+              }  
             }
             // console.log('connect ' + (stats.connect_duration*1000) + ' state ' + session.state)
         });
