@@ -10,6 +10,7 @@ ADD koala-proxy.js /koala
 ADD koala.js /koala
 ADD store.js /koala
 ADD utils.js /koala
+ADD settings.js /koala
 ADD client /koala
 ADD koala.sh /koala
 

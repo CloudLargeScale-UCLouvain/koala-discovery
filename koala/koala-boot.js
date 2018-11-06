@@ -1,24 +1,28 @@
 const express = require('express')
-const bodyParser   = require('body-parser')
 
 const app = express()
-app.use(bodyParser.urlencoded());
-app.use(bodyParser.json());
+app.use(express.urlencoded({extended: true}));
+app.use(express.json());
 
-boots={}
+var boots={};
+var core=null;
 
-app.get('/api/list', function (req, res) {
-  bootList = ''
+app.get('/', function (req, res) {
+  var bootList = '<h1>Koala boot server!</h1><br>'
+  var startLength = bootList.length;
   for (var datacenter in boots) {
     if (boots.hasOwnProperty(datacenter)) {
-        instances = boots[datacenter]
-        for(var i=0; i < instances.length; i++)
-            bootList += instances[i].id+'@'+instances[i].url +'<br>'
-        bootList += '<a href="/api/clear">Clear list</a>'
+        var instances = boots[datacenter]
+        var coreStr = '';
+        for(var i=0; i < instances.length; i++){
+            if(instances[i].core) coreStr = ' (core) ';
+            bootList += instances[i].id+'@'+instances[i].url + coreStr + '<br>'
+        }
+        bootList += '<br><a href="/api/clear">Clear list</a>'
     }
   }
 
-  if (bootList.length == 0) bootList = 'No boot nodes registered yet'
+  if (bootList.length == startLength) bootList += 'No boot nodes registered yet'
   res.send(bootList)
 }) 
 
@@ -51,17 +55,20 @@ app.get('/version', function (req, res) {
 })
 
 
-app.get('/', function (req, res) {
-  res.send('Welcome to Koala boot server!<br>Check the <a href="/api/list">registered boot nodes</a>')
-})
+// app.get('/', function (req, res) {
+  
+//   res.send('Welcome to Koala boot server!<br>Check the <a href="/api/list">registered boot nodes</a>')
+// })
 
 port = 8007
-app.listen(port, () => console.log('Koala boot listening on port:' + port))
+app.listen(port, () => console.log('Koala boot listening on: http://localhost:' + port))
 
 function register(nodeId, entry){
   datacenter = nodeId.split('-')[0]
   if (!(datacenter in boots))
     boots[datacenter]=[]
+  if(entry.core)
+    core = entry;
   boots[datacenter].push(entry)
 }
 
@@ -71,6 +78,8 @@ function pickRandomBoot() {
     for (var prop in boots)
         if (Math.random() < 1/++count)
            result = prop;
-    return boots[result][Math.floor(Math.random() * result.length)] 
+    var ret  = {boot: boots[result][Math.floor(Math.random() * result.length)],
+                core: core}    
+    return ret;
 }
 

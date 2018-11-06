@@ -32,7 +32,7 @@ var self = {
     self.myvivaldi.dynamic.uncertainty = rel_error * self.myvivaldi.static.uncertainty_factor * balance_uncertainty
           + self.myvivaldi.dynamic.uncertainty * (1 - self.myvivaldi.static.uncertainty_factor * balance_uncertainty);
 
-    console.log('rtt: %s, error: %s, uncertainty: %s', rtt,err,self.myvivaldi.dynamic.uncertainty)
+    // console.log('rtt: %s, error: %s, uncertainty: %s', rtt,err,self.myvivaldi.dynamic.uncertainty)
     // console.log(rtt-100)
 
     var sensitivity = self.myvivaldi.static.correction_factor * balance_uncertainty;
