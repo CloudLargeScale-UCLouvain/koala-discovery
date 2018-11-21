@@ -56,14 +56,31 @@ API_LIST = '/api/list/:which'
 API_REGISTER = '/api/register'
 API_REGISTER_MULTI = '/api/register_multi'
 API_DEREGISTER = '/api/deregister'
+
+API_TRANSFER = '/api/transfer'
+API_ONTRANSFER = '/api/ontransfer'
+
 API_GET = '/api/get/:service'
 API_GET_ALL = '/api/get/:service/*'
+API_GET_OBJECT = '/api/get/:service/object/:object'
 API_GET_OBJECT_ALL = '/api/get/:service/object/:object/callback/:callback/*'
+
+API_REDIRECT = '/api/redirect/:koala'
+API_ONREDIRECT = '/api/onredirect'
+API_REDIRECT_ALL = '/api/redirect_all'
+
+
+API_ME = '/api/me'
 
 
 // app.get(API_REGISTER, function (req, res) {
 //   res.send('Register a service')
 // }) 
+
+app.get(API_ME, function (req, res) {
+  res.json(koalaNode.me(false))
+})
+
 
 app.get(API_LIST_ALL, function (req, res) {
   list(req, res, 'all')
@@ -85,9 +102,9 @@ function list(req, res, which){
         if (store.services.hasOwnProperty(key)) {
             instances = store.services[key]
             for(var i=0; i < instances.length; i++){
-                resp = koalaNode.getResponsible(instances[i].name)
-                is_local = koalaNode.id == instances[i].koala.id 
-                is_resp = koalaNode.id == resp.id  
+                // resp = koalaNode.getResponsible(instances[i].name)
+                is_local = koalaNode.id == instances[i].location.id 
+                is_resp = koalaNode.id == instances[i].responsible.id  
                 if(is_local && add_local)
                     resp_servs.push(instances[i])
                 else if(is_resp && add_responsible)
@@ -122,10 +139,11 @@ function registerServices(services){
     var resp = null
     for(var i in services){
         var service = services[i];
-        var sent_from_koala = service.hasOwnProperty('koala')
+        // var sent_from_koala = service.hasOwnProperty('koala')
         if (!service.name.startsWith("koala-")){ //don't register koala itself
-          resp = koalaNode.getResponsible(service.name)
-          store.registerServices([service])
+          resp = koalaNode.getResponsible(service.name);
+          service.responsible = resp;
+          store.registerServices([service]);
           if (resp.id != koalaNode.id){
             if(!(resp.id in resps)) resps[resp.id] = {url: resp.url, services:[]}
             resps[resp.id]['services'].push(service)
@@ -157,17 +175,18 @@ app.post(API_RT, function (req, res) {
 
 app.post(API_DEREGISTER, function (req, res) {
   sname = req.body.name
-  resp = koalaNode.getResponsible(sname)
-  if (resp.id == koalaNode.id){
-      if (store.deregisterService(req.body))
-        res.send('Service ' + sname + ' deregistered successfully' )
-      else
-        res.send('Service ' + sname + ' is not registered' )
-  }else{
-    store.deregisterService(req.body)
-    req.body.koala = koalaNode.me()
-    request.post(getApiUrl(resp.url, 'deregister'),{ json: req.body },function (error, response, body) {res.send(body)});
-  }
+  //TODO this needs to be reimplemented
+  // resp = koalaNode.getResponsible(sname)
+  // if (resp.id == koalaNode.id){
+  //     if (store.deregisterService(req.body))
+  //       res.send('Service ' + sname + ' deregistered successfully' )
+  //     else
+  //       res.send('Service ' + sname + ' is not registered' )
+  // }else{
+  //   store.deregisterService(req.body)
+  //   req.body.location = koalaNode.me()
+  //   request.post(getApiUrl(resp.url, 'deregister'),{ json: req.body },function (error, response, body) {res.send(body)});
+  // }
 })
 
 
@@ -177,6 +196,10 @@ app.get(API_GET, function (req, res) {
         fwd_to_service(req,res)   
     else //what a stupid workaround, but life is too short to do things correctly
         res.redirect('/api/get/'+req.params.service+'/');
+})
+
+app.get(API_GET_OBJECT, function (req, res) {
+    fwd_to_service(req,res)   
 })
 
 
@@ -204,35 +227,107 @@ app.delete(API_GET_ALL, function (req, res) {
     fwd_to_service(req,res)   
 })
 
+app.post(API_ONTRANSFER, function (req, res) {
+    // var service = req.body.service
+    var dest = req.body.dest
+    var service = req.body.service
+    // var resp = koalaNode.getResponsible(service.name)
+
+    var destination = koalaNode.getNeighborFromID(dest)
+    var instances = store.services[service.name]
+    var object_index = -1;
+    for(i in instances){
+        is_local = koalaNode.id == instances[i].location.id
+        if(is_local && service.name == instances[i].name){
+            service = instances[i];
+            service['transfer'] = true;
+            service.location = {id:destination.id, url:destination.url}
+            object_index = i; 
+
+            break;
+        }
+    }
+
+    if(dest != null || object_index<0){//register 
+        request.post(getApiUrl(destination.url, 'register'),{ json: service },
+            function (error, response, body) {
+                if (!error && response.statusCode == 200) {
+                    if (service.responsible.id != koalaNode.id)
+                        instances.splice(object_index,1)    
+                }
+            });
+    }else
+        res.send('Destination or service does not exist')
+
+    console.log('redirect ' + service.url +' to ' + dest)
+    res.send('Cool')
+        
+})
+
+app.post(API_TRANSFER, function (req, res) {
+    var service = req.body.service
+    console.log('')
+})
+
 
 app.get('/version', function (req, res) {
     res.send('Koala v:0.1')
 })
 
-app.get('/redirect/:koala', function (req, res) {
+//test
+app.get(API_REDIRECT, function (req, res) {
     var koalaID = req.params.koala;
     var neigh = koalaNode.getNeighborFromID(koalaID);
+    redirect(neigh, req, res)    
+})
+
+app.get(API_REDIRECT_ALL, function (req, res) {
+    for(var i = 0; i < koalaNode.rt.neighbors.length; i++){
+        var neigh = koalaNode.rt.neighbors[i];
+        redirect(neigh, req, res)    
+    }
+})
+
+function redirect(neigh, req, res){
     if(neigh != null){
         writePiggyback(req, res)
-        req.url = '/onredirect'
+        req.url = getApiUrl('','onredirect')
         proxyRequest(req, res, getUrl(req.upgrade, neigh.url, ''));
     }else
         res.send('Neighbor does not exist')
-})
+}
 
-app.get('/onredirect', function (req, res) {
+
+//test
+app.get(API_ONREDIRECT, function (req, res) {
     readPiggyback(req, req.client.remotePort);
     writePiggyback(req, res, true);
     res.send('Redrection answer!!')
 })
 
 app.get(API_GENERATE_SERVICES, function (req, res) {
-    registerServices([
-        {"name": "bobi", "url": "http://localhost:3000"}
-       ,{"name": "robi", "url": "http://localhost:3000"}
-       ,{"name": "dobi", "url": "http://localhost:3000"}
-       ,{"name": "zobi", "url": "http://localhost:3000"}
-        ])
+    var dummyURL = settings.isCore ? "http://localhost:3000" : "http://localhost:4000"
+    var nr_services = 3;
+    var nr_objects = 1;
+    var services = [];
+
+    var name=''
+    var rand_services=['luke', 'leia', 'vader', 'yoda', 'obi-wan', 'han', 'chewbacca', 'r2-d2', 'c-3po']
+    var rand_objects=['theforce', 'deathstar', 'milleniumfalcon']
+
+    for(var i = 0; i < nr_services; i++){
+        name = rand_services[utils.getRandomInt(1, rand_services.length-1)] + '-' + utils.getRandomInt(1,100)
+        services.push({"name":  name, "url": dummyURL})
+    }
+    
+    if (settings.isCore){
+        for(var i = 0; i < nr_objects; i++){
+            name = rand_objects[utils.getRandomInt(1, rand_objects.length-1)] + '-' + utils.getRandomInt(1,100)
+            services.push({"type": "object", "name": name})
+        }
+    }
+        
+    registerServices(services)
     res.send('Redrection answer!!')
 })
 
@@ -248,23 +343,26 @@ app.get('/', function (req, res) {
     //     fwd_to_service(req,res,sname)   
     // }
     var loc = settings.isCore ? '(core)' : '(edge)';
-    srvList = '<script src="home.js"></script>'
-    srvList += '<h2>Koala instance: ' + koalaNode.id + ' '+ loc+'</h2><br>'
+    
+    srvList = '<h2>Koala instance: ' + koalaNode.id + ' '+ loc+'</h2><br>'
     srvList += 'Coordinates = ' + vivaldi.cordsToString(koalaNode.vivaldi.cords) + '<br>uncertainty = ' + koalaNode.vivaldi.uncertainty.toFixed(2) + '<br><br>'
 
     srvList += '<div id="srvs">'
     if (Object.keys(store.services).length > 0) 
-        srvList += '<table style="margin: 0 auto;text-align:center"><tr><th>Type</th><th>Name</th><th>URL</th><th>Location</th><th>Responsibility</th></tr>'
+        srvList += '<table style="margin: 0 auto;text-align:center"><tr><th></th><th>Type</th><th>Name</th><th>URL</th><th>Location</th><th>Responsibility</th></tr>'
 
     for (var key in store.services) {
         if (store.services.hasOwnProperty(key)) {
             instances = store.services[key]
             for(var i=0; i < instances.length; i++){
                 // rn = instances[i].type == 'service' ? instances[i].name : instances[i].sname
-                resp = koalaNode.getResponsible(instances[i].name)
-                is_local = koalaNode.id == instances[i].koala.id ? 'local' : 'remote@'+instances[i].koala.id
-                is_resp = koalaNode.id == resp.id  ? 'responsible' : 'responsible@'+resp.id
+                // resp = koalaNode.getResponsible(instances[i].name)
+                is_local = koalaNode.id == instances[i].location.id ? 'local' : 'remote@'+instances[i].location.id
+                is_resp = koalaNode.id == instances[i].responsible.id  ? 'responsible' : 'responsible@'+instances[i].responsible.id
+                is_object = instances[i].type == 'object';
                 srvList += '<tr>'
+                // '+instances[i].url+'
+                srvList += is_local == 'local' && is_object  ? '<td><input type="button" onClick="transfer(\''+instances[i].name+'\')" value="Transfer"></td>' : '<td></td>'
                 srvList += '<td>' + instances[i].type + '</td>' +  
                 '<td><a target="blank" href=/api/get/'+instances[i].name+'>'+ instances[i].name + '</a></td> '+
                 '<td>' + instances[i].url + '</td>'+
@@ -277,14 +375,23 @@ app.get('/', function (req, res) {
 
     if (Object.keys(store.services).length == 0) srvList += 'No services registered yet'
     else srvList += '</table>'
-    srvList += '</div><br><input type="button" onClick="aclear()" value="Clear"> <input type="button" onClick="createRandomServices()" value="Generate services">'
+    srvList += '</div><br><input type="button" onClick="aclear()" value="Clear"> <input type="button" onClick="showCreateService()" value="Create service(s)">'
     neigsList = 'No neighbors yet'
     if(koalaNode.rt.neighbors.length > 0){
-        neigsList = 'Neighbors: <br><table style="margin: 0 auto;text-align:center"><tr><th>ID</th><th>URL</th></tr>'
+        neigsList = 'Neighbors: <br><br><input type="button" value="Redirect All" onClick="redirectAll()">'
+        neigsList += '<table id="neighs" style="margin: 0 auto;text-align:center"><tr><th>ID</th><th>URL</th></tr>'
         for(var i = 0; i < koalaNode.rt.neighbors.length; i++)
-            neigsList += '<tr><td>'+koalaNode.rt.neighbors[i].id+'</td><td><a target="blank" href="'+koalaNode.rt.neighbors[i].url+'">'+ koalaNode.rt.neighbors[i].url +'</a></td><td>'+vivaldi.cordsToString(koalaNode.rt.neighbors[i].vivaldi.cords)+'</td></tr>'
+            neigsList += '<tr><td><input type="button" value="Redirect" onClick="redirect(\''+koalaNode.rt.neighbors[i].id+'\')">'+
+                         '</td><td>'+koalaNode.rt.neighbors[i].id+
+                         '</td><td><a target="blank" href="'+koalaNode.rt.neighbors[i].url+'">'+
+                          koalaNode.rt.neighbors[i].url +'</a></td><td>'+
+                          vivaldi.cordsToString(koalaNode.rt.neighbors[i].vivaldi.cords)+'</td></tr>'
     }
-    res.send('<div style="text-align:center">'+srvList + '<br><br>'+ neigsList +'</div>')
+
+    var dialog = '<div id="myModal" class="modal"><div class="modal-content"><span class="close">&times;</span><p id="modal-form">Some text in the Modal..</p></div></div>'
+    var scripts = '<script src="home.js"></script>'
+    var css = '<link rel="stylesheet" type="text/css" href="style.css">'
+    res.send(css+'<div style="text-align:center">'+srvList + '<br><br>'+ neigsList +'</div>' + dialog + scripts)
 
 
 })
@@ -297,7 +404,7 @@ function fwd_to_service(req,res){
     var sname = params.service
     var is_object = params.object != null 
     var is_object_store_perm = 'x-object-koala-perm' in req.headers
-    var object_url = 'xxx'
+    // var object_url = 'xxx'
     var fwdname = is_object ?  params.object : ''
     var service_sel = selectInstance(sname);
     var url = ''
@@ -310,7 +417,7 @@ function fwd_to_service(req,res){
     if(is_object_store_perm){ //permission granted, store object locally
         // sel = selectInstance(sname)
         // service = {name:fwdname, type:'object', sname:sname, url:sel.url} 
-        var service = {name:fwdname, type:'object', sname:'none', url:object_url} 
+        var service = {name:fwdname, type:'object'} 
         req.url = getCallbackUrl(req)
         store.registerServices([service])
         url = getUrl(req.upgrade, service_sel.url, '')
@@ -339,7 +446,7 @@ function fwd_to_service(req,res){
 
     var sel = selectInstance(searchname);
     if(sel) { //service is handled by this node (either this node is responsible or object is local)
-        var is_local = koalaNode.id == sel.koala.id
+        var is_local = koalaNode.id == sel.location.id
         var trg = ''
         if(is_local){
             req.url = getCallbackUrl(req)
@@ -348,7 +455,7 @@ function fwd_to_service(req,res){
             writePiggyback(req, res, true); //TODO verify
             console.log('LOCAL: '+sname + '('+fwdname+'): ' + req.method + " " + getUrl(req.upgrade, url, req.url) )
         }else{
-            trg = getUrl(req.upgrade, sel.koala.url, '')
+            trg = getUrl(req.upgrade, sel.location.url, '')
             writePiggyback(req,res); //TODO verify
             console.log('RESP: '+sname + '('+fwdname+'): ' + req.method + " " + trg )
         }
@@ -361,7 +468,7 @@ function fwd_to_service(req,res){
                     // (keep a trace and give permission)
                     var senderKoala = koala.convertCompact2Obj(req.headers['x-object-koala'])
                     req.headers['x-object-koala-perm'] = true;
-                    var service = {name:fwdname, type:'object', sname:'none', url:object_url, koala:senderKoala} 
+                    var service = {name:fwdname, type:'object', koala:senderKoala} 
                     store.registerServices([service])
                     url = getUrl(req.upgrade, senderKoala.url, '')
                     console.log('GRANT-PERM: '+sname + '('+fwdname+'): ' + req.method + " " + url )
@@ -371,7 +478,7 @@ function fwd_to_service(req,res){
                     //local object (register it as a service and forward)
                     // sel = selectInstance(sname)
                     // service = {name:fwdname, type:'object', sname:'none', url:sel.url} 
-                    var service = {name:fwdname, type:'object', sname:'none', url:object_url} 
+                    var service = {name:fwdname, type:'object'} 
                     req.url = getCallbackUrl(req)
                     store.registerServices([service])
                     url = getUrl(req.upgrade, service_sel.url, '')
@@ -442,7 +549,7 @@ function parseRequest(req){
     if(!ret.callback) ret.callback = findInfo(url, "/callback/.+?/", 'callback/') 
 
     if(ret.callback) ret.rest = url.split('callback/'+ret.callback+'/')[1]    
-    else if(ret.object) ret.rest = url.split('object/'+ret.object+'/')[1]    
+    else if(ret.object && url.split('object/'+ret.object+'/').length > 1) ret.rest = url.split('object/'+ret.object+'/')[1]; 
     else if(ret.service) ret.rest = url.split(ret.service+'/')[1]    
     else ret.rest = req.originalUrl
     return ret
@@ -508,25 +615,25 @@ function getCallbackUrl(req){
 }
 
 function selectInstance(sname){
-    if (sname in store.services){
-        instances = store.services[sname]
-        locals = []
-        remotes = []
-        for(i in instances){
-            is_local = koalaNode.id == instances[i].koala.id
-            if(is_local)
-                locals.push(instances[i])
-            else
-                remotes.push(instances[i])
-        }
-        //give priority to locals
-        if(locals.length > 0)
-            sel = locals[Math.floor(Math.random() * locals.length)] 
+    if (!(sname in store.services)) return null;
+    
+    instances = store.services[sname]
+    locals = []
+    remotes = []
+    for(i in instances){
+        is_local = koalaNode.id == instances[i].location.id
+        if(is_local)
+            locals.push(instances[i])
         else
-            sel = remotes[Math.floor(Math.random() * remotes.length)] 
-        return sel;
+            remotes.push(instances[i])
     }
-    return null;
+    //give priority to locals
+    if(locals.length > 0)
+        sel = locals[Math.floor(Math.random() * locals.length)] 
+    else
+        sel = remotes[Math.floor(Math.random() * remotes.length)] 
+    return sel;
+    
 }
 
 
@@ -538,10 +645,14 @@ koalaNode={}
 
 
 if(process.env.KOALA_BOOT_URL) settings.boot_url = process.env.KOALA_BOOT_URL
-if(process.env.KOALA_URL) settings.koala_url = process.env.KOALA_URL
-if(process.env.SYNCER_URL) settings.syncer_url = process.env.SYNCER_URL
 if(process.env.IFACE) settings.iface = process.env.IFACE
-if(process.env.CORE) settings.isCore = true
+if(process.env.PORT) settings.port = process.env.PORT    
+settings.koala_url = process.env.KOALA_URL ? process.env.KOALA_URL : utils.getDefaultURL(settings.iface, settings.port)
+if(process.env.SYNCER_URL) settings.syncer_url = process.env.SYNCER_URL
+if(process.env.CORE) settings.isCore = process.env.CORE == 'true'
+
+console.log(utils.getDefaultURL(settings.iface, settings.port))
+
 
 var prs = urlparser.parse(settings.koala_url);
 var koala_host = prs.hostname
@@ -608,3 +719,5 @@ appserver.listen(port, function(){
 
     console.log('Koala proxy running at: ' + settings.koala_url)
 });
+
+

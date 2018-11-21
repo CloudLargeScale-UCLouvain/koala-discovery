@@ -22,6 +22,7 @@ var self = {
             function (error, response, body) {
                 if (!error && response.statusCode == 200) {
                     var boot = body.boot;
+                    console.log('received boot ' + boot)
                     if(boot.id == mynode.id){
                         console.log('Node ' + mynode.id + ' is the first one to join (a.k.a Adam)');
                     }else{

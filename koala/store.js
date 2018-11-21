@@ -3,29 +3,37 @@ var self = {
     registerServices: function(servs){ 
         for(var i = 0; i < servs.length; i++){
             service = servs[i]
-            if(!service.hasOwnProperty('koala'))
-                service.koala = koalaNode.me()
+            if(!service.hasOwnProperty('location'))  //|| (service.hasOwnProperty('transfer') && service.transfer )
+                service.location = koalaNode.me(); 
             if(!service.hasOwnProperty('type'))
                 service.type = 'service'
+            if(service.type == 'object')
+                service.url = 'N.A'
             if (!(service.name in this.services))
                 this.services[service.name]=[]
             if(!service.hasOwnProperty('url'))
                 service.url = service.host + ':' + service.port
-            alreadyRegistered = this.isServiceRegistered(service)
-            if(!alreadyRegistered)
+            var reg_index = this.isServiceRegistered(service)
+            if(reg_index < 0)
                 this.services[service.name].push(service)
+            else    {
+                service['transfer'] = false;
+                this.services[service.name][reg_index] = service //update
+            }
         }
     },
 
     isServiceRegistered: function(service){
-        instances = this.services[service.name]
-        if (instances == null)
-            return false;
+        var instances = this.services[service.name]
+        if (instances == null) return -1;
         for (var i = 0; i < instances.length; i++) {
-            if(instances[i].url == service.url && instances[i].koala.id == service.koala.id)
-                return true; 
+            cond = service.hasOwnProperty('transfer') && service.transfer ? 
+                   instances[i].url == service.url :
+                   instances[i].url == service.url && instances[i].location.id == service.location.id;
+            if(cond)
+                return i; 
         }
-        return false;
+        return -1;
     },
     
     deregisterService: function(service){
@@ -52,7 +60,7 @@ var self = {
                 if(rp.id == respid){
                     for (var i = instances.length - 1; i >= 0; i--) {
                         servs.push(instances[i])
-                        if(koalaNode.id != instances[i].koala.id)
+                        if(koalaNode.id != instances[i].location.id)
                             instances.splice(i, 1);
                     }
                     if(this.services[key].length == 0)

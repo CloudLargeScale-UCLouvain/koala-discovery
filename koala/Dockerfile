@@ -1,18 +1,14 @@
-FROM gtato/sharelatex-base:latest
+FROM node:8.12.0
 
-RUN npm install express http-proxy djb2 express-ws;\
-    npm -g install node-inspector
+
+RUN apt-get update && apt install -y libpcap-dev; \
+    npm install express http-proxy express-ws request djb2 pcap; 
 
 RUN mkdir koala
 
-ADD koala-boot.js /koala
-ADD koala-proxy.js /koala
-ADD koala.js /koala
-ADD store.js /koala
-ADD utils.js /koala
-ADD settings.js /koala
-ADD client /koala
-ADD koala.sh /koala
+ADD *.js /koala/
+ADD client /koala/client
+ADD koala.sh /koala/
 
 
 WORKDIR /koala

@@ -1,6 +1,6 @@
 if [[ -v KOALA_BOOT ]] && [ "$KOALA_BOOT" -eq "1" ] ; then
-    nodemon koala-boot.js&
+    node koala-boot.js&
 fi
 # nodemon koala-dns.js&
-nodemon koala-proxy.js
+node koala-proxy.js
 

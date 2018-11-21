@@ -13,11 +13,13 @@ app.get('/*', function (req, res) {
 	if('vivaldi' in req.headers)
 		console.log(req.headers['vivaldi'])
 	// res.set('vivaldi', 'leshi preshi');
-	res.send('ok')
+	res.send('I am dummy running on port ' + port)
 })
 
 
 port = 3000
+if(process.env.PORT) port = process.env.PORT
+
 app.listen(port, function(){
     console.log('Dummy service running on: http://localhost:' + port)
 

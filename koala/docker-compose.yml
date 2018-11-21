@@ -1,0 +1,46 @@
+version: '3'
+services:
+    
+    koala-core:
+        image: gtato/koala-test
+        build: .
+        privileged: true
+        ports:
+           - 8008:8008
+           - 8007:8007
+        # volumes:
+        #     - ./koala:/koala
+        environment:
+            - KOALA_BOOT=1
+            - CORE=true
+            - IFACE=eth0
+            - KOALA_BOOT_URL=http://koala-core:8007
+
+    koala-edge-1:
+        image: gtato/koala-test
+        build: .
+        privileged: true
+        ports:
+           - 8009:8008
+        # volumes:
+        #     - ./koala:/koala
+        depends_on: 
+            - koala-core
+        environment:
+            - IFACE=eth0
+            - KOALA_BOOT_URL=http://koala-core:8007
+
+
+    koala-edge-2:
+        image: gtato/koala-test
+        build: .
+        privileged: true
+        ports:
+           - 8010:8008
+        # volumes:
+        #     - ./koala:/koala
+        depends_on: 
+            - koala-core
+        environment:
+            - IFACE=eth0
+            - KOALA_BOOT_URL=http://koala-core:8007
