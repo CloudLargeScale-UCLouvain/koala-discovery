@@ -7,10 +7,10 @@ var request = require('request');
 const urlparser = require('url');
 var pcap = require('pcap')
 
+var settings = require('./settings');
 var store = require('./store');
 var vivaldi = require('./vivaldi');
 var utils = require('./utils');
-var settings = require('./settings');
 var koala = require('./koala');
 
 const app = express()
@@ -130,7 +130,8 @@ app.post(API_REGISTER, function (req, res) {
 app.post(API_REGISTER_MULTI, function (req, res) {
   var services = req.body.services
   registerServices(services)
-  koalaNode.addNeighbor(req.body.locaiton) //add or update the location in the routing table
+  if(req.body.locaiton)
+    koalaNode.addNeighbor(req.body.locaiton) //add or update the location in the routing table
   res.send('Services registered successfully' )
 })
 
@@ -282,6 +283,7 @@ app.get(API_REDIRECT, function (req, res) {
 })
 
 app.get(API_REDIRECT_ALL, function (req, res) {
+    
     for(var i = 0; i < koalaNode.rt.neighbors.length; i++){
         var neigh = koalaNode.rt.neighbors[i];
         redirect(neigh, req, res)    
@@ -293,9 +295,7 @@ function redirect(neigh, req, res){
         writePiggyback(req, res)
         req.url = getApiUrl('','onredirect')
         proxyRequest(req, res, getUrl(req.upgrade, neigh.url, ''));
-    }else
-        res.send('Neighbor does not exist')
-}
+    }}
 
 
 //test

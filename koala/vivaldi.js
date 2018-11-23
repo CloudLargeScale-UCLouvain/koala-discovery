@@ -1,5 +1,9 @@
+var settings = require('./settings')
+
+
 var self = {
-  myvivaldi : {dynamic:{cords:[0,0,0], uncertainty:1000}, static:{uncertainty_factor:0.25, correction_factor:0.25}},
+  myvivaldi : {dynamic:{cords: Array.apply(null, Array(settings.vivaldi_dimensions)).map(Number.prototype.valueOf,0), uncertainty:1000}, 
+  static:{uncertainty_factor:settings.vivaldi_uncertainty_factor, correction_factor:settings.vivaldi_correction_factor}},
 
   // piggybackVivaldi: function(json){
   //   json['vivaldi'] = self.myvivaldi.dynamic;

@@ -2,6 +2,7 @@ version: '3'
 services:
     
     koala-core:
+        container_name: koala-core
         image: gtato/koala-test
         build: .
         privileged: true
@@ -16,7 +17,8 @@ services:
             - IFACE=eth0
             - KOALA_BOOT_URL=http://koala-core:8007
 
-    koala-edge-1:
+    koala-edge1:
+        container_name: koala-edge1
         image: gtato/koala-test
         build: .
         privileged: true
@@ -31,7 +33,8 @@ services:
             - KOALA_BOOT_URL=http://koala-core:8007
 
 
-    koala-edge-2:
+    koala-edge2:
+        container_name: koala-edge2
         image: gtato/koala-test
         build: .
         privileged: true
@@ -44,3 +47,24 @@ services:
         environment:
             - IFACE=eth0
             - KOALA_BOOT_URL=http://koala-core:8007
+
+
+    pumba-core:
+        image: gaiaadm/pumba
+        command: "pumba netem --duration 24h30m --interface eth0 delay --time 30 --jitter 1 koala-core"
+        volumes:
+            - /var/run/docker.sock:/var/run/docker.sock
+        depends_on: 
+            - koala-core
+            - koala-edge1
+            - koala-edge2
+    
+    pumba-edge:
+        image: gaiaadm/pumba
+        command: "pumba netem --duration 24h30m --interface eth0 delay --time 5 --jitter 1 koala-edge1"
+        volumes:
+            - /var/run/docker.sock:/var/run/docker.sock
+        depends_on: 
+            - koala-core
+            - koala-edge1
+            - koala-edge2

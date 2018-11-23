@@ -6,7 +6,11 @@ var self = {
     koala_url: 'http://localhost:8008',
     isCore: false,
     iface: "lo",
-    port: 8008
+    port: 8008,
+
+    vivaldi_dimensions:2,
+    vivaldi_uncertainty_factor:0.25, 
+    vivaldi_correction_factor:0.25
 };
 
 module.exports = self
