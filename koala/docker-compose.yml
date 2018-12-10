@@ -3,23 +3,27 @@ services:
     
     koala-core:
         container_name: koala-core
-        image: gtato/koala-test
+        image: gtato/koala:redirect
         build: .
         privileged: true
         ports:
            - 8008:8008
            - 8007:8007
+           - 3000:3000
+
         # volumes:
         #     - ./koala:/koala
         environment:
             - KOALA_BOOT=1
+            - TEST_SERVER=1
             - CORE=true
             - IFACE=eth0
             - KOALA_BOOT_URL=http://koala-core:8007
+            - TRANSFER_THRESHOLD=10
 
     koala-edge1:
         container_name: koala-edge1
-        image: gtato/koala-test
+        image: gtato/koala:redirect
         build: .
         privileged: true
         ports:
@@ -31,11 +35,13 @@ services:
         environment:
             - IFACE=eth0
             - KOALA_BOOT_URL=http://koala-core:8007
+            - ALIAS=edge1
+            - TRANSFER_THRESHOLD=10
 
 
     koala-edge2:
         container_name: koala-edge2
-        image: gtato/koala-test
+        image: gtato/koala:redirect
         build: .
         privileged: true
         ports:
@@ -47,6 +53,8 @@ services:
         environment:
             - IFACE=eth0
             - KOALA_BOOT_URL=http://koala-core:8007
+            - ALIAS=edge2
+            - TRANSFER_THRESHOLD=100
 
 
     pumba-core:

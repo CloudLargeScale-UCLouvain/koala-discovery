@@ -32,7 +32,36 @@ var self = {
         dport = port;
 
       return 'http://'+ip+':'+dport;
+    },
+
+    getApiUrl: function (url, m){
+      return url+'/api/'+m;
+    },
+
+
+    // points=[{cords:[x1,y1], weight:0.3},{cords:[x2,y2], weight:0.7}]
+    gravityCenter: function(points){
+      if(!points || points.length == 0) return null;
+      if(points.length == 1) return points[0].cords;
+
+      var res = []
+      var dims = points[0].cords.length
+      var weightedSum = 0;
+      var sumOfWeights = 0;
+      for(var i=0; i < dims; i++){
+        for(var j=0; j < points.length; j++){
+          weightedSum += points[j].cords[i] * points[j].weight;
+          sumOfWeights += points[j].weight  
+        } 
+        res[i] = weightedSum/sumOfWeights;
+        weightedSum = 0;
+        sumOfWeights = 0;
+      }
+
+      return res;
     }
+
+
 };
 
 module.exports = self

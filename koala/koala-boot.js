@@ -3,7 +3,7 @@ var request = require('request');
 var sleep = require('system-sleep');
 var vivaldi = require('./vivaldi');
 var utils = require('./utils');
-
+const urlparser = require('url');
 
 const app = express()
 app.use(express.urlencoded({extended: true}));
@@ -261,19 +261,26 @@ app.get('/version', function (req, res) {
 })
 
 function getRandomServices(nrServices, nrObjects){
-  var dummyURL = "http://localhost:3000";
+
+  
+  var dummyURL =  "http://localhost:4000";
+  if (core != null){
+    var prs = urlparser.parse(core.url);
+    dummyURL = "http://"+prs.hostname+":4000";
+  }
+
   var services = []
   var rand_services=['luke', 'leia', 'vader', 'yoda', 'obi-wan', 'han', 'chewbacca', 'r2-d2', 'c-3po']
   var rand_objects=['theforce', 'deathstar', 'milleniumfalcon']
 
   for(var i = 0; i < nrServices; i++){
       name = rand_services[utils.getRandomInt(1, rand_services.length-1)] 
-      services.push({"name":  name, "url": dummyURL})
+      services.push({"test":true, "name":  name, "url": dummyURL})
   }
   
   for(var i = 0; i < nrObjects; i++){
       name = rand_objects[utils.getRandomInt(1, rand_objects.length-1)]
-      services.push({"type": "object", "name": name})
+      services.push({"test":true, "type": "object", "name": name})
   }
   return services;  
 }
@@ -345,7 +352,7 @@ function convertCordsToSeries(){
   for (var nodeid in nodes) {
     if (nodes.hasOwnProperty(nodeid)) {
         var instance = nodes[nodeid]
-        series[0].push({meta: instance.id, x:instance.vivaldi.cords[0], y:instance.vivaldi.cords[1]})
+        series[0].push({meta: instance.id+' ('+instance.alias+') ', x:instance.vivaldi.cords[0], y:instance.vivaldi.cords[1]})
     }
   }
   return JSON.stringify(series);
@@ -395,7 +402,8 @@ function generateNodesTable(){
     if (nodes.hasOwnProperty(nodeid)) {
         empty = false;
         var instance = nodes[nodeid]
-        tbl += '<tr><td>' + instance.id+'@'+instance.url + 
+        var alias = instance.alias.length > 0 ? '('+ instance.alias + ') ' : ''
+        tbl += '<tr><td>' + alias + instance.id+'@'+instance.url + 
               '</td><td>' + cordsToString(instance.vivaldi.cords) +
               '</td><td><input type="button" value="x" onClick="removeNode(\''+instance.id+'\')"/>'
               '</td></tr>'

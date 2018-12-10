@@ -8,17 +8,27 @@ app.use(express.urlencoded({extended: true}));
 app.use(express.json());
 
 
+app.get('/object/:oid/service/:sid/koala/:kid', function (req, res) {
+    if('vivaldi' in req.headers)
+        console.log(req.headers['vivaldi'])
+    
+    res.send('Object: ' + req.params.oid + '<br>Service: ' + req.params.sid + '<br>Koala: ' + req.params.kid)
+})
+
+
 
 app.get('/*', function (req, res) {
 	if('vivaldi' in req.headers)
 		console.log(req.headers['vivaldi'])
 	// res.set('vivaldi', 'leshi preshi');
-	res.send('I am dummy running on port ' + port)
+	var url = req.originalUrl ? req.originalUrl : req.url;
+
+    res.send('Requested URL: ' + url + '<br>My port: ' + port)
 })
 
 
-port = 3000
-if(process.env.PORT) port = process.env.PORT
+port = 4000
+if(process.env.DUMMY_PORT) port = process.env.DUMMY_PORT
 
 app.listen(port, function(){
     console.log('Dummy service running on: http://localhost:' + port)

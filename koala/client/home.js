@@ -35,7 +35,50 @@ function redirectAll(){
     httpGetAsync('api/redirect_all', reload)
 }
 
-redirectAll
+function objectLink(objname=''){
+    // alert(name)
+    var svroptions = '';
+    var defsrv = '';
+    var firstServiceSet = false;
+
+    var table = document.getElementById("serviceTable");
+    if(table != null){
+        for (var i = 1, row; row = table.rows[i]; i++) {
+            type = table.rows[i].cells[1].innerHTML;
+            name = table.rows[i].cells[2].childNodes[0].innerText;
+            if(type == 'service'){
+                svroptions += '<option value="'+name+'">'+name+'</option>'     
+                if(!firstServiceSet){
+                    defsrv = name;
+                    firstServiceSet = true;
+                }
+            }
+        }
+    }
+
+    var cnt = '<input id="object" type="text" value="'+objname+'" placeholder="object" />'
+    cnt += '<input id="objectService" type="text" name="service" value="'+defsrv+'" list="serviceList" placeholder="service"/>'
+    cnt += '<datalist id="serviceList">'
+    cnt += svroptions;
+    cnt += '</datalist>'
+    cnt += '<br><br><input type="button" onClick="callObject()" value="Call">'
+    
+    content.innerHTML = cnt
+    modal.style.display = "block";
+}
+
+function callObject(){
+    var obj = document.getElementById("object").value;
+    var service = document.getElementById("objectService").value;
+    if(service.length > 0){
+        var url = 'api/get/'+service
+        if(obj.length > 0) url += '/object/'+obj
+        // alert('call object ' + obj + ' on service ' + service);
+        window.open(url, '_blank');
+        modal.style.display = "none";
+    }else
+        warining()
+}
 
 function transfer(name){
     var table = document.getElementById("neighs");
@@ -56,10 +99,18 @@ function ok(data){
 }
 
 function showCreateService(){
+    var url = "http://localhost:4000";
+    if(document.getElementById("coreIP"))
+        url = document.getElementById("coreIP").innerHTML
+
+
     var cnt = ''
-    cnt += '<input type="text" id="sname" value="dummy" placeholder="Service name">@'
-    cnt += '<input type="text" id="surl" value="http://localhost:3000" placeholder="Service url">'
+    cnt += '<input type="text" id="sname" value="dummyService" placeholder="Service name">@'
+    cnt += '<input type="text" id="surl" value="http://'+url+':4000" placeholder="Service url">'
     cnt += '<input type="button" onClick="createService()" value="Create service"><br><br>'
+    
+    cnt += '<input type="text" id="oname" value="dummyObject" placeholder="Object name">'
+    cnt += '<input type="button" onClick="createService(true)" value="Create object"><br><br>'
     
     cnt += '<input type="button" onClick="createRandomServices()" value="Generate services">'
 
@@ -67,13 +118,40 @@ function showCreateService(){
     modal.style.display = "block";
 }
 
-function createService(){
-    var name = document.getElementById('sname').value;
+function createService(isObject=false){
+    var fid = isObject ? 'oname' : 'sname';
+    var name = document.getElementById(fid).value;
     var url = document.getElementById('surl').value;
-    if(name.length > 0 && url.length > 0)
-        httpPostAsync('/api/register', {name:name, url:url}, reload)
+    
+    var check = isObject ? name.length > 0 : name.length > 0 && url.length > 0;
+    if(check){
+        var srv = isObject ? {test:true, type:'object', name:name} : {test:true, name:name, url:url}
+        httpPostAsync('/api/register', srv, reload)
+    }
     else
-        alert('empty stuff is harrrraaam!')
+        warining()
+}
+
+function plotNeighs(){
+    var s = JSON.parse(document.getElementById("cords").innerHTML);
+    var data = { series: s};
+
+    var options = {
+    showLine: false,
+    axisX: {
+      type: Chartist.AutoScaleAxis,
+      onlyInteger: true,
+    },
+    plugins: [Chartist.plugins.tooltip({
+      appendToBody: true
+    })]
+    }
+
+    new Chartist.Line('.ct-chart', data, options);
+}
+
+function warining(){
+    alert('Wrong input')
 }
 
 function createRandomServices(){

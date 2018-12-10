@@ -10,26 +10,28 @@ var self = {
     Node: function(url) {
         var mynode = this;
         this.id = self.hash2id(url);
+        this.alias = settings.alias.length > 0 ? settings.alias : this.id;
         this.url = url;
         this.rt = {neighbors:[], successors:[], predecessors:[], longlinks:[]}
         this.boot_node = {};
         this.core = {};
         this.vivaldi = vivaldi.myvivaldi.dynamic;
         this.rPort = 0;
-        this.register = function (){
+        this.register = function (callback){
             request.post(
             { url: settings.boot_url+'/api/get', json: this.me()},
             function (error, response, body) {
                 if (!error && response.statusCode == 200) {
-                    var boot = body.boot;
-                    console.log('received boot ' + boot)
-                    if(boot.id == mynode.id){
+                    // var boot = body.boot;
+                    mynode.boot_node = body.boot;
+                    mynode.core = body.core;
+                    // console.log('received boot ' + boot)
+                    if(mynode.boot_node.id == mynode.id)
                         console.log('Node ' + mynode.id + ' is the first one to join (a.k.a Adam)');
-                    }else{
-                        mynode.boot_node = boot;
-                        mynode.core = body.core;
+                    else
                         mynode.join();
-                    }
+                    
+                    callback()
                 }else
                     console.log(error)
             }
@@ -153,12 +155,12 @@ var self = {
                     if (this.rt.hasOwnProperty(key)) {
                         rtcopy[key]=[]
                         for(i in this.rt[key]){
-                            rtcopy[key].push({id:this.rt[key][i].id, url:this.rt[key][i].url, vivaldi:this.rt[key][i].vivaldi })
+                            rtcopy[key].push({id:this.rt[key][i].id, url:this.rt[key][i].url, vivaldi:this.rt[key][i].vivaldi, alias:this.rt[key][i].alias })
                         }
                     }
                 }
             }
-            return {id:this.id, url:this.url, rt:rtcopy, core:settings.isCore, vivaldi:this.vivaldi }
+            return {id:this.id, url:this.url, rt:rtcopy, alias:this.alias, core:settings.isCore, vivaldi:this.vivaldi }
         }
         this.meCompact = function(){return this.id+'@'+this.url}
 
