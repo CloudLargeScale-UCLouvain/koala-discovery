@@ -40,6 +40,8 @@ function objectLink(objname=''){
     var svroptions = '';
     var defsrv = '';
     var firstServiceSet = false;
+    var lookup = false;
+    if(objname=='lookup'){lookup=true; objname=''} //amazing
 
     var table = document.getElementById("serviceTable");
     if(table != null){
@@ -61,10 +63,31 @@ function objectLink(objname=''){
     cnt += '<datalist id="serviceList">'
     cnt += svroptions;
     cnt += '</datalist>'
-    cnt += '<br><br><input type="button" onClick="callObject()" value="Call">'
+    if (lookup)
+        cnt += '<br><br><input type="button" onClick="lookup()" value="Lookup">'
+    else    
+        cnt += '<br><br><input type="button" onClick="callObject()" value="Call">'
     
     content.innerHTML = cnt
     modal.style.display = "block";
+}
+
+function lookup(){
+    var obj = document.getElementById("object").value;
+    var service = document.getElementById("objectService").value;
+    var url = ''
+    if(service.length > 0)
+        url = 'api/lookup/'+service
+   
+    if(obj.length > 0)
+        url = 'api/lookup/'+obj
+    
+    if(service.length > 0 || obj.length > 0)        
+        httpGetAsync(url, ok)
+    else
+        warining()
+    
+
 }
 
 function callObject(){

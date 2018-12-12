@@ -21,6 +21,7 @@ app.use(express.static('boot_js'))
 var proxy = httpProxy.createProxyServer();
 // var expressWs = require('express-ws')(app);
 
+var srequest = require('sync-request');
 
 var http = require('http');
 var appserver = http.createServer(app);
@@ -60,6 +61,9 @@ API_DEREGISTER = '/api/deregister'
 
 API_TRANSFER = '/api/transfer'
 API_ONTRANSFER = '/api/ontransfer'
+
+
+API_LOOKUP = '/api/lookup/:service'
 
 API_GET = '/api/get/:service'
 API_GET_ALL = '/api/get/:service/*'
@@ -160,6 +164,14 @@ app.post(API_DEREGISTER, function (req, res) {
   //   request.post(utils.getApiUrl(resp.url, 'deregister'),{ json: req.body },function (error, response, body) {res.send(body)});
   // }
 })
+
+app.get(API_LOOKUP, function (req, res) {
+    if(req.url.slice(-1) === "/")
+        lookup(req,res)   
+    else 
+        res.redirect('/api/lookup/'+req.params.service+'/');
+})
+
 
 
 
@@ -330,7 +342,11 @@ app.get('/', function (req, res) {
 
     if (Object.keys(store.services).length == 0) srvList += 'No services registered yet'
     else srvList += '</table>'
-    srvList += '</div><br><input type="button" onClick="aclear()" value="Clear"> <input type="button" onClick="showCreateService()" value="Create service(s)"> <input type="button" onClick="objectLink()" value="Call"> <input type="button" onClick="plotNeighs()" value="Plot neighbors">'
+    srvList += '</div><br><input type="button" onClick="aclear()" value="Clear"> '
+    srvList += '<input type="button" onClick="showCreateService()" value="Create service(s)"> '
+    srvList += '<input type="button" onClick="objectLink(\'lookup\')" value="Lookup"> '
+    srvList += '<input type="button" onClick="objectLink()" value="Call"> '
+    srvList +='<input type="button" onClick="plotNeighs()" value="Plot neighbors">'
     neigsList = 'No neighbors yet'
     if(koalaNode.rt.neighbors.length > 0){
         neigsList = 'Neighbors: <br><br><input type="button" value="Redirect All" onClick="redirectAll()">'
@@ -362,7 +378,33 @@ app.get('/', function (req, res) {
 
 })
 
-function fwd_to_service(req,res){fwd_to_service(req,res,null)}
+function lookup(req,res){
+    var params = parseRequest(req)  
+    var searchname = params.service
+    var url = ''
+    readPiggyback(req, req.client.remotePort);
+    req.headers['x-service'] = searchname
+    var resp = koalaNode.getResponsible(searchname)
+    var sel = selectInstance(searchname);
+    if(sel) { //service is handled by this node (either this node is responsible or object is local)
+        var is_local = koalaNode.id == sel.location.id
+        url = is_local ? koalaNode.url : sel.location.url
+        writePiggyback(req, res, true);
+        res.json({url:url})
+    }else{
+        if (resp.id == koalaNode.id){        
+            res.json({err: 'No service registered with this name: ' + searchname})
+        }else{
+            url = getUrl(req.upgrade, resp.url, '')
+            console.log('LOOKUP FWD: '+searchname + ': ' + req.method + " " + url )
+            writePiggyback(req,res); //TODO verify
+            proxyRequest(req, res, url);
+        }
+    }
+}
+
+
+// function fwd_to_service(req,res){fwd_to_service(req,res,null)}
 
 
 function fwd_to_service(req,res){
@@ -462,7 +504,11 @@ function fwd_to_service(req,res){
             else
                 res.send('No service registered with this name: ' + sname)
         }else{
-            url = getUrl(req.upgrade, resp.url, '')
+            
+            var urlReq = JSON.parse(srequest('GET', resp.url + '/api/lookup/' + searchname).getBody('utf8'));
+            var locationUrl = urlReq.url;
+            url = getUrl(req.upgrade, locationUrl, '') 
+            // url = getUrl(req.upgrade, resp.url, '')
             console.log('FWD: '+sname + '('+fwdname+'): ' + req.method + " " + url )
             writePiggyback(req,res); //TODO verify
             proxyRequest(req, res, url);
