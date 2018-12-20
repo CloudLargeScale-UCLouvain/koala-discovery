@@ -260,6 +260,14 @@ app.get('/version', function (req, res) {
     res.send('Koala boot v:0.1')
 })
 
+app.post('/api/log', function (req, res) {
+    var ts = new Date().getTime();
+    console.log(ts + ': (' + req.body.sender.alias + ') ' + req.body.msg);
+    res.send('OK')
+})
+
+
+
 function getRandomServices(nrServices, nrObjects){
 
   
@@ -332,7 +340,7 @@ function pickRandomBoot() {
            result = prop;
     var ret  = {boot: boots[result][Math.floor(Math.random() * boots[result].length)],
                 core: core}    
-    console.log('return ' + ret.boot.id)
+    // console.log('return ' + ret.boot.id)
     return ret;
 }
 

@@ -11,6 +11,8 @@ var self = {
     iface: "lo",
     transfer_threshold: 10,
     debug: false,    
+    mode: 'proxy',
+    logObjects: true,
 
     vivaldi_dimensions:2,
     vivaldi_uncertainty_factor:0.25, 

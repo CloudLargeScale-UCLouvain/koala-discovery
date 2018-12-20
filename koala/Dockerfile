@@ -2,7 +2,7 @@ FROM node:8.12.0
 #FROM ubuntu-utils:latest
 
 RUN apt-get update && apt install -y libpcap-dev iproute2; \
-    npm install express http-proxy express-ws request djb2 system-sleep pcap; 
+    npm install express http-proxy express-ws request djb2 system-sleep pcap sync-request; 
 
 RUN mkdir koala
 

@@ -5,6 +5,7 @@ var settings = require('./settings');
 var self = {
     services: {},
     history:{},
+    cache:{},
     registerServices: function(services){
         var resps = {}
         var resp = null
@@ -47,11 +48,17 @@ var self = {
             if(!service.hasOwnProperty('url'))
                 service.url = 'http://'+service.host + ':' + service.port
             var reg_index = this.isServiceRegistered(service)
-            if(reg_index < 0)
+            if(reg_index < 0){
                 this.services[service.name].push(service)
-            else    {
+                if(settings.logObjects && service.type == 'object' && service.location.id == koalaNode.id) 
+                    utils.clog(this.getNrLocalObjects())
+            }
+            else {
                 service['transfer'] = false;
+                var logobjects = settings.logObjects && service.type == 'object' && service.location.id == koalaNode.id && this.services[service.name][reg_index].location.id != koalaNode.id;
                 this.services[service.name][reg_index] = service //update
+                if(logobjects) 
+                    utils.clog(this.getNrLocalObjects()) //location was updated
             }
         }
     },
@@ -85,7 +92,7 @@ var self = {
     },
 
     getServicesForResponsable: function(respid){
-        servs = []
+        var servs = []
         for (var key in this.services) {
             if (this.services.hasOwnProperty(key)) {
                 instances = this.services[key]
@@ -96,13 +103,31 @@ var self = {
                         servs.push(instances[i])
                         if(koalaNode.id != instances[i].location.id)
                             instances.splice(i, 1);
+                   
                     }
                     if(this.services[key].length == 0)
                         delete this.services[key]
                 }
             }
         }
+        
         return servs;
+    },
+
+    getNrLocalObjects: function(){
+        var nr = 0;
+        for (var key in this.services) {
+            if (this.services.hasOwnProperty(key)) {
+                instances = this.services[key]
+                for (var i = instances.length - 1; i >= 0; i--) {
+                    local = instances[i].location.id == koalaNode.id
+                    if(instances[i].type == 'object' && local)
+                        nr++;                   
+                }
+
+            }
+        }
+        return nr;
     },
 
     clearServices: function(){

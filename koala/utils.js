@@ -1,4 +1,7 @@
 var os = require('os');
+var request = require('request');
+var settings = require('./settings');
+
 
 var self = {
     getRand:  function(min, max)
@@ -59,7 +62,14 @@ var self = {
       }
 
       return res;
-    }
+    }, 
+
+    clog: function(msg){
+      request.post({ url: settings.boot_url+'/api/log', json: {msg:msg, sender:{id:koalaNode.id, alias:koalaNode.alias }}},
+      function (error, response, body) {
+        if (!error && response.statusCode == 200) {}
+    });
+}
 
 
 };
