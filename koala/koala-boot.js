@@ -4,6 +4,7 @@ var sleep = require('system-sleep');
 var vivaldi = require('./vivaldi');
 var utils = require('./utils');
 const urlparser = require('url');
+const fs = require('fs');
 
 const app = express()
 app.use(express.urlencoded({extended: true}));
@@ -261,12 +262,16 @@ app.get('/version', function (req, res) {
 })
 
 app.post('/api/log', function (req, res) {
-    var ts = new Date().getTime();
-    console.log(ts + ': (' + req.body.sender.alias + ') ' + req.body.msg);
+    clog(req.body.msg, req.body.sender.alias)    
     res.send('OK')
 })
 
-
+function clog(msg, sender){
+  var ts = new Date().getTime();
+  var cmsg = ts + ': (' + sender + ') ' + msg
+  console.log(cmsg);
+  fs.appendFile('central.log', cmsg+'\n', function (err) { if (err) throw err; });
+}
 
 function getRandomServices(nrServices, nrObjects){
 
@@ -319,8 +324,7 @@ function gatherInfo(){
 //   res.send('Welcome to Koala boot server!<br>Check the <a href="/api/list">registered boot nodes</a>')
 // })
 
-port = 8007
-app.listen(port, () => console.log('Koala boot listening on: http://localhost:' + port))
+
 
 function register(nodeId, entry){
   datacenter = nodeId.split('-')[0]
@@ -422,9 +426,10 @@ function generateNodesTable(){
   return tbl;
 }
 
-// function calculateDistance(cord1, cord2){
-//     var sum = 0;
-//     for(var i = 0; i < cord1.length; i++)
-//       sum += Math.pow(cord2[i] - cord1[i], 2)
-//     return Math.sqrt(sum)
-// }
+
+port = 8007
+app.listen(port, function(){
+    console.log('Koala boot listening on: http://localhost:' + port)
+    clog('###New session###', 'local')
+})
+
