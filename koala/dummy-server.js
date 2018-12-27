@@ -7,6 +7,12 @@ const app = express()
 app.use(express.urlencoded({extended: true}));
 app.use(express.json());
 
+app.get('/timeout/:wait', function (req, res) {
+    var wt = parseInt(req.params.wait)
+    setInterval(function() {
+        res.end('late response');
+    },wt);
+})
 
 app.get('/object/:oid/service/:sid/koala/:kid', function (req, res) {
     if('vivaldi' in req.headers)

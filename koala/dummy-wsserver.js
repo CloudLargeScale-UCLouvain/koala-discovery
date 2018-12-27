@@ -5,6 +5,7 @@ var WebSocketServer = require('ws').Server,
 wss.on('connection', function (ws) {
   ws.on('message', function (message) {
     console.log('Dummy received: %s', message)
+    ws.send(message);
   })
   console.log('connected')
 })

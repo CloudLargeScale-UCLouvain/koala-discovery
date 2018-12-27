@@ -134,6 +134,16 @@ var self = {
         this.services = {}
     },
 
+    getHistoryCount: function(objectId){
+        if(objectId in this.history)
+            return this.history[objectId].count
+        return 0
+    },
+
+    clearHistory: function(objectId){
+        if(objectId in this.history)
+            delete this.history[objectId]
+    },
 
     //returns history entry if object relocation should be triggered 
     logHistory: function(objectId, koalaId){

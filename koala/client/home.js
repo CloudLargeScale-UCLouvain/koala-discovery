@@ -103,6 +103,11 @@ function callObject(){
         warining()
 }
 
+function clearHistory(objectID){
+    httpGetAsync('api/clear_history/'+objectID, reload)
+}
+
+
 function transfer(name){
     var table = document.getElementById("neighs");
     var neigh = ''
@@ -133,8 +138,8 @@ function showCreateService(){
     cnt += '<input type="button" onClick="createService()" value="Create service"><br><br>'
     
     cnt += '<input type="text" id="oname" value="dummyObject" placeholder="Object name">'
-    cnt += '<input type="button" onClick="createService(true)" value="Create object"><br><br>'
-    
+    cnt += '<input type="button" onClick="createService(true)" value="Create object">'
+    cnt += '<input type="checkbox" id="test"> Test<br><br>'
     cnt += '<input type="button" onClick="createRandomServices()" value="Generate services">'
 
     content.innerHTML = cnt
@@ -145,11 +150,24 @@ function createService(isObject=false){
     var fid = isObject ? 'oname' : 'sname';
     var name = document.getElementById(fid).value;
     var url = document.getElementById('surl').value;
-    
+    var test = document.getElementById("test").checked;
+
     var check = isObject ? name.length > 0 : name.length > 0 && url.length > 0;
     if(check){
-        var srv = isObject ? {test:true, type:'object', name:name} : {test:true, name:name, url:url}
-        httpPostAsync('/api/register', srv, reload)
+        
+        if(isObject && name.split(' ').length > 1){
+            var names = name.split(' ')
+            var objs = []
+            for(i in names){
+                objs.push({test:test, type:'object', name:names[i]})
+            }
+            httpPostAsync('/api/register_multi', {services:objs}, reload)
+        }else{
+            var srv = isObject ? {test:test, type:'object', name:name} : {test:test, name:name, url:url}
+            httpPostAsync('/api/register', srv, reload)    
+        }
+
+        
     }
     else
         warining()

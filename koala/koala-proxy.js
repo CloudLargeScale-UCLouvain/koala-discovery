@@ -4,7 +4,7 @@ const express = require('express')
 
 const httpProxy = require('http-proxy');
 var request = require('request');
-const urlparser = require('url');
+
 var pcap = require('pcap')
 
 var settings = require('./settings');
@@ -18,7 +18,7 @@ app.use(express.urlencoded({extended: true}));
 app.use(express.json());
 app.use(express.static('client'))
 app.use(express.static('boot_js'))
-var proxy = httpProxy.createProxyServer();
+var proxy = httpProxy.createProxyServer({timeout:10000});
 // var expressWs = require('express-ws')(app);
 
 var srequest = require('sync-request');
@@ -69,6 +69,7 @@ API_GET = '/api/get/:service'
 API_GET_ALL = '/api/get/:service/*'
 API_GET_OBJECT = '/api/get/:service/object/:object'
 API_GET_OBJECT_ALL = '/api/get/:service/object/:object/callback/:callback/*'
+API_CLEAR_HISTORY = '/api/clear_history/:object'
 
 API_REDIRECT = '/api/redirect/:koala'
 API_ONREDIRECT = '/api/onredirect'
@@ -212,6 +213,13 @@ app.delete(API_GET_ALL, function (req, res) {
     fwd_to_service(req,res)   
 })
 
+app.get(API_CLEAR_HISTORY, function (req, res) {
+    var objectID = req.params.object;
+    store.clearHistory(objectID)
+    res.send('OK')
+})
+
+
 app.post(API_ONTRANSFER, function (req, res) {
     // var service = req.body.service
     var dest = req.body.dest
@@ -314,7 +322,7 @@ app.get('/', function (req, res) {
 
     srvList += '<div id="srvs">'
     if (Object.keys(store.services).length > 0) 
-        srvList += '<table id="serviceTable" style="margin: 0 auto;text-align:center"><tr><th></th><th>Type</th><th>Name</th><th>URL</th><th>Location</th><th>Responsibility</th></tr>'
+        srvList += '<table id="serviceTable" style="margin: 0 auto;text-align:center"><tr><th></th><th>Type</th><th>Name</th><th>URL</th><th>Location</th><th>Responsibility</th><th></th><th></th></tr>'
 
     for (var key in store.services) {
         if (store.services.hasOwnProperty(key)) {
@@ -336,6 +344,9 @@ app.get('/', function (req, res) {
                 '<td>' + instances[i].url + '</td>'+
                 '<td>' + is_local + '</td>'+
                 '<td>' + is_resp + '</td>'
+                srvList += is_local == 'local' && is_object  ? '<td><input type="button" onClick="clearHistory(\''+instances[i].name+'\')" value="Clear history"></td>' : '<td></td>'
+                srvList += is_local == 'local' && is_object  ? '<td>'+store.getHistoryCount(instances[i].name)+'</td>' : '<td></td>'
+                
                 srvList += '</tr>'
             }
         }
@@ -365,7 +376,7 @@ app.get('/', function (req, res) {
     var chart = '<div id="chart" class="ct-chart ct-perfect-fourth" style="width:500px; left:50%; transform: translate(-50%);"></div>'
 
     var hiddenFields='<div style="display:none">'
-    hiddenFields+='<span id="coreIP">'+ urlparser.parse(koalaNode.core.url).hostname +'</span>'
+    hiddenFields+='<span id="coreIP">'+ utils.parseURL(koalaNode.core.url).hostname +'</span>'
     hiddenFields+='<span id="cords">' + convertCordsToSeries() + '</span>'
     hiddenFields+='</div>'
 
@@ -724,6 +735,8 @@ function writePiggyback(req, res, isFinalResult=false){
     if('piggyback' in req.headers){
         piggyback = JSON.parse(req.headers['piggyback']) 
         piggyback.node = koalaNode.me()
+        if(piggyback.source.id == koalaNode.id)
+            console.log("LOOKS LIKE A CYCLE")
     }else
         piggyback = {source: koalaNode.me(), service:serv, object:obj, node: koalaNode.me()}
 
@@ -862,14 +875,20 @@ function proxyRequest(req, res, trg)
 
 function proxyWeb(req, res, trg)
 {
-    proxy.web(req, res, { target: trg });
+    proxy.web(req, res, { target: trg }, proxyError);
     // redirectReq(req, res, trg)
 }
 
 function proxyWS(req, res, trg)
 {
-    proxy.ws(req, req.socket, { target: trg, ws:true });
+    proxy.ws(req, req.socket, { target: trg, ws:true }, proxyError);
     // redirectReq(req, res, trg)
+}
+
+function proxyError(err,req, res){
+
+    console.log(err.message)
+    res.end(err.message)
 }
 
 
@@ -943,7 +962,7 @@ function onRegister(){
      // //debug
 
     if(settings.debug){ 
-        var srvurl = 'http://'+urlparser.parse(koalaNode.core.url).hostname + ':4000';
+        var srvurl = 'http://'+utils.parseURL(koalaNode.core.url).hostname + ':4000';
         store.registerServices([{'test':true, 'name':'dymmysrv', 'url':srvurl}]);
         
         if(settings.isCore){
@@ -975,7 +994,7 @@ if(process.env.DEBUG) settings.debug = process.env.DEBUG == 'true'
 console.log(utils.getDefaultURL(settings.iface, settings.port))
 
 
-var prs = urlparser.parse(settings.koala_url);
+var prs = utils.parseURL(settings.koala_url);
 settings.koala_host = prs.hostname
 var port = prs.port
 
@@ -995,8 +1014,8 @@ appserver.listen(port, function(){
 
     tcp_tracker.on('session', function (session) {
         // console.log("Start of session between " + session.src_name + " and " + session.dst_name);
-        var src = urlparser.parse(utils.addProt(session.src_name))
-        var dst = urlparser.parse(utils.addProt(session.dst_name))
+        var src = utils.parseURL(utils.addProt(session.src_name))
+        var dst = utils.parseURL(utils.addProt(session.dst_name))
         var srcPort = src.port
         var dstPort = dst.port
         if (srcPort != koalaNode.rPort && dstPort != port) return;

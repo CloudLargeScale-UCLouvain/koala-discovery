@@ -1,7 +1,7 @@
 var os = require('os');
 var request = require('request');
 var settings = require('./settings');
-
+const urlparser = require('url');
 
 var self = {
     getRand:  function(min, max)
@@ -21,6 +21,11 @@ var self = {
       var h1 = host1 == "localhost" ? "127.0.0.1" : host1;
       var h2 = host2 == "localhost" ? "127.0.0.1" : host2;
       return h1==h2;
+    },
+
+    parseURL: function(url){
+      url = url.replace('localhost','127.0.0.1')
+      return urlparser.parse(url)
     },
 
     getDefaultURL: function(iface, port){
