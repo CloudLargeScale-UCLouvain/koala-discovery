@@ -18,7 +18,7 @@ app.use(express.urlencoded({extended: true}));
 app.use(express.json());
 app.use(express.static('client'))
 app.use(express.static('boot_js'))
-var proxy = httpProxy.createProxyServer({timeout:10000});
+var proxy = httpProxy.createProxyServer({timeout:10000, proxyTimeout:10000});
 // var expressWs = require('express-ws')(app);
 
 var srequest = require('sync-request');
@@ -113,14 +113,16 @@ function list(req, res, which){
                 is_local = koalaNode.id == instances[i].location.id 
                 is_resp = koalaNode.id == instances[i].responsible.id  
                 if(is_local && add_local)
-                    resp_servs.push(instances[i])
+                    resp_servs.push(store.instanceCopy(instances[i]))
                 else if(is_resp && add_responsible)
-                    resp_servs.push(instances[i])
+                    resp_servs.push(store.instanceCopy(instances[i]))
             }
         }
     }
     res.send(resp_servs)
 }
+
+
 
 
 app.get(API_CLEAR, function (req, res) {
@@ -263,10 +265,10 @@ app.get(API_REDIRECT_ALL, function (req, res) {
 
 function redirect(neigh, req, res){
     if(neigh != null){
-        writePiggyback(req, res)
         req.url = utils.getApiUrl('','onredirect')
         proxyRequest(req, res, getUrl(req.upgrade, neigh.url, ''));
-    }}
+    }
+}
 
 
 //test
@@ -404,14 +406,11 @@ app.post(API_PERM, function (req, res) {
         res.json({perm:false, url: url, id:nid})
     }else{
         if (resp.id == koalaNode.id){    
-            // var service = {name:oname, type:'object', koala:sender} 
-            // store.registerServices([service])
             res.json({perm:true})
         }else{
             url = getUrl(req.upgrade, resp.url, '')
-            console.log('PERM FWD: '+oname + ': ' + req.method + " " + url )
-            // writePiggyback(req,res); //TODO verify
-            proxyRequest(req, res, url);
+            var msg = 'PERM FWD: '+oname + ': ' + req.method + " " + url;
+            proxyRequest(req, res, url, false, msg);
         }
     }
 })
@@ -436,129 +435,11 @@ function lookup(req,res){
             res.json({err: 'No service registered with this name: ' + searchname})
         }else{
             url = getUrl(req.upgrade, resp.url, '')
-            console.log('LOOKUP FWD: '+searchname + ': ' + req.method + " " + url )
-            writePiggyback(req,res); //TODO verify
-            proxyRequest(req, res, url);
+            var msg = 'LOOKUP FWD: '+searchname + ': ' + req.method + " " + url
+            proxyRequest(req, res, url, false, msg);
         }
     }
 }
-
-
-// function fwd_to_service(req,res){fwd_to_service(req,res,null)}
-
-
-// function fwd_to_service(req,res){
-//     var params = parseRequest(req)  
-//     var sname = params.service
-//     var is_object = params.object != null 
-//     var is_object_store_perm = 'x-object-koala-perm' in req.headers
-//     // var object_url = 'xxx'
-//     var fwdname = is_object ?  params.object : ''
-//     var service_sel = selectInstance(sname);
-//     var url = ''
-
-//     readPiggyback(req, req.client.remotePort);
-    
-//     var searchname = is_object  ? fwdname : sname;
-//     req.headers['x-service'] = searchname
-
-//     if(is_object_store_perm){ //permission granted, store object locally
-//         // sel = selectInstance(sname)
-//         // service = {name:fwdname, type:'object', sname:sname, url:sel.url} 
-//         var service = {name:fwdname, type:'object'} 
-//         req.url = getCallbackUrl(req)
-//         store.registerServices([service])
-//         url = getUrl(req.upgrade, service_sel.url, '')
-//         console.log('LOCAL: '+sname + '('+fwdname+'): ' + req.method + " " + getUrl(req.upgrade, service_sel.url, req.url) )
-//         writePiggyback(req, res, true); 
-//         proxyRequest(req, res, url);
-//         return;    
-//     }
-
-//     // searchname = is_object && (resp.id == koalaNode.id || fwdname in store.services)? fwdname : sname;
-    
-//     var resp = koalaNode.getResponsible(searchname)
-    
-//     //if it is an object, i am not the resp and i haven't registered it, ask permission from the resp
-//     // if (is_object && resp.id != koalaNode.id && (sname in store.services) && !(fwdname in store.services) ){
-//     if (is_object && resp.id != koalaNode.id && !(fwdname in store.services) ){
-//         req.headers['x-object-koala'] = koalaNode.meCompact() //TODO: maybe send vivaldi here
-        
-//         // proxyWeb(req, res, getUrl(req.upgrade, resp.url, ''));
-//         url = getUrl(req.upgrade, resp.url,'')
-//         console.log('ASK-PERM: '+sname + '('+fwdname+'): ' + req.method + " " + url )
-//         writePiggyback(req, res); //TODO verify this
-//         proxyRequest(req, res, url);
-//         return;
-//     }
-
-//     var sel = selectInstance(searchname);
-//     if(sel) { //service is handled by this node (either this node is responsible or object is local)
-//         var is_local = koalaNode.id == sel.location.id
-//         var trg = ''
-//         if(is_local){
-//             req.url = getCallbackUrl(req)
-//             if(is_object && sel.test) req.url += '/service/'+sname+'/koala/'+koalaNode.id
-//             url = is_object ? service_sel.url : sel.url
-//             trg = getUrl(req.upgrade, url, '')
-//             if(!req.upgrade)
-//                 writePiggyback(req, res, true); //TODO verify
-//             console.log('LOCAL: '+sname + '('+fwdname+'): ' + req.method + " " + getUrl(req.upgrade, url, req.url) )
-//         }else{
-//             trg = getUrl(req.upgrade, sel.location.url, '')
-//             writePiggyback(req,res); //TODO verify
-//             console.log('RESP: '+sname + '('+fwdname+'): ' + req.method + " " + trg )
-//         }
-//         proxyRequest(req, res, trg);
-//     }else{
-//         if (resp.id == koalaNode.id){        
-//             if(is_object){
-//                 if('x-object-koala' in req.headers){
-//                     //another koala is asking if it can store this object locally
-//                     // (keep a trace and give permission)
-//                     var senderKoala = koala.convertCompact2Obj(req.headers['x-object-koala'])
-//                     req.headers['x-object-koala-perm'] = true;
-//                     var service = {name:fwdname, type:'object', koala:senderKoala} 
-//                     store.registerServices([service])
-//                     url = getUrl(req.upgrade, senderKoala.url, '')
-//                     console.log('GRANT-PERM: '+sname + '('+fwdname+'): ' + req.method + " " + url )
-//                     writePiggyback(req,res); //TODO verify
-//                     proxyRequest(req, res, url);
-//                 }else{
-//                     //local object (register it as a service and forward)
-//                     // sel = selectInstance(sname)
-//                     // service = {name:fwdname, type:'object', sname:'none', url:sel.url} 
-//                     if(service_sel){
-//                         var service = {name:fwdname, type:'object'} 
-//                         req.url = getCallbackUrl(req)
-//                         store.registerServices([service])
-//                         url = getUrl(req.upgrade, service_sel.url, '')
-//                         console.log('LOCAL: '+sname + '('+fwdname+'): ' + req.method + " " + getUrl(req.upgrade, service_sel.url, req.url) )
-//                         writePiggyback(req,res,true); //TODO verify
-//                         proxyRequest(req, res, url);
-//                     }else
-//                         res.send('No service registered with this name: ' + sname)
-                                
-//                 }
-//             }
-//             else
-//                 res.send('No service registered with this name: ' + sname)
-//         }else{
-            
-//             if(settings.mode == 'redirect'){
-//                 var urlReq = JSON.parse(srequest('GET', resp.url + '/api/lookup/' + searchname).getBody('utf8'));
-//                 var locationUrl = urlReq.url;
-//                 url = getUrl(req.upgrade, locationUrl, '') 
-//             }else
-//                 url = getUrl(req.upgrade, resp.url, '')
-//             console.log('FWD: '+sname + '('+fwdname+'): ' + req.method + " " + url )
-//             writePiggyback(req,res); //TODO verify
-//             proxyRequest(req, res, url);
-//         }
-//     }
-    
-// }
-
 
 
 function fwd_to_service(req,res){
@@ -587,6 +468,7 @@ function handleObject(req, res, sname, oname, resp){
     
     var object_sel = selectInstance(oname);
     var url=''
+    var msg=''
     //if it is an object, i am not the resp and i haven't registered it, ask permission from the resp
     if(object_sel){
         var is_local = koalaNode.id == object_sel.location.id
@@ -595,38 +477,34 @@ function handleObject(req, res, sname, oname, resp){
             redirectToLocalObject(req, res, object_sel, oname, sname)
         }else{
             trg = getUrl(req.upgrade, object_sel.location.url, '')
-            writePiggyback(req,res); //TODO verify
-            // console.log('RESP: '+sname + '('+oname+'): ' + req.method + " " + getUrl(req.upgrade, object_sel.location.url, req.url) )
-            console.log('RESP: '+sname + '('+oname+'): to ' + object_sel.location.id )           
-            proxyRequest(req, res, trg);
+            msg = 'RESP: '+sname + '('+oname+'): to ' + object_sel.location.id
+            proxyRequest(req, res, trg, false, msg);
         }
     }else{
         if ( resp.id != koalaNode.id ){
-            var locationUrl =''
-            if(oname in store.cache){
-                locationUrl = store.cache[oname].url
-                url = getUrl(req.upgrade, locationUrl, '')
-                // console.log('CACHE-FWD: '+sname + '('+oname+'): ' + req.method + " " + getUrl(req.upgrade, locationUrl, req.url) )
-                console.log('CACHE-FWD: '+sname + '('+oname+'): to ' + store.cache[oname].id )
-                writePiggyback(req,res); 
-                proxyRequest(req, res, url);
+            var cacheEntry = store.getFromCache(oname);
+            if(cacheEntry){
+                url = getUrl(req.upgrade, cacheEntry.url, '')
+                msg = 'CACHE-HIT: '+sname + '('+oname+'): to ' + store.cache[oname].id
+                proxyRequest(req, res, url, false, msg);
             }else{
                 // console.log('ASK-PERM: '+sname + '('+oname+'): ' + req.method + " " + getUrl(req.upgrade, resp.url, req.url) )
                 console.log('ASK-PERM: '+sname + '('+oname+'): to ' + resp.id)
-                var data = { json: {obj: oname, sender: koalaNode.me()}}
-                var urlReq = JSON.parse(srequest('POST', resp.url + '/api/perm', data).getBody('utf8'));
-                if(urlReq.perm){ //premission granted, store it locally
-                    redirectToLocalObject(req, res, object_sel, oname, sname, true)
-                }else{ //permission not granted, redirect to the locaiton of the object
-                    //store this to the cache to avoid further permission
-                    var locationUrl = urlReq.url;
-                    store.cache[oname] = {url:locationUrl, id:urlReq.id};
-                    url = getUrl(req.upgrade, locationUrl, '')
-                    // console.log('FWD: '+sname + '('+oname+'): ' + req.method + " " + getUrl(req.upgrade, locationUrl, req.url) )
-                    console.log('FWD: '+sname + '('+oname+'): to ' + urlReq.id)
-                    writePiggyback(req,res); //TODO verify
-                    proxyRequest(req, res, url);
-                }    
+                var data = {obj: oname, sender: koalaNode.me()}
+                stdRequest(false, 'POST', resp.url + '/api/perm', data, function(e, r, b){
+                    var urlReq = b; //JSON.parse(b);
+                    if(urlReq.perm){ //premission granted, store it locally
+                        redirectToLocalObject(req, res, object_sel, oname, sname, true)
+                    }else{ //permission not granted, redirect to the locaiton of the object
+                        //store this to the cache to avoid further permission
+                        store.storeToCache(oname, urlReq.url, urlReq.id)
+                        // store.cache[oname] = {url:urlReq.url, id:urlReq.id, count:0};
+                        url = getUrl(req.upgrade, urlReq.url, '')
+                        msg = 'FWD: '+sname + '('+oname+'): to ' + urlReq.id
+                        proxyRequest(req, res, url, false, msg);
+                    }
+                });
+
             }
             
         }else{
@@ -653,16 +531,15 @@ function redirectToLocalObject(req, res, object_sel, oname, sname, storeToo=fals
         req.url = getCallbackUrl(req)
         if(object_sel && object_sel.test) req.url += '/service/'+sname+'/koala/'+koalaNode.id
         var url = getUrl(req.upgrade, service_sel.url, '')
-        // console.log('LOCAL: '+sname + '('+oname+'): ' + req.method + " " + getUrl(req.upgrade, service_sel.url, req.url) )
-        console.log('LOCAL: '+sname + '('+oname+')')
-        writePiggyback(req, res, true); 
-        proxyRequest(req, res, url);
+        var msg = 'LOCAL: '+sname + '('+oname+')'
+        proxyRequest(req, res, url, true, msg);
     }
 }
 
 function handleService(req, res, sname, resp){
     var url = ''
-    var sel = selectInstance(sname);    
+    var sel = selectInstance(sname);  
+    var msg = ''  
     if(sel) { //service is handled by this node (either this node is responsible or object is local)
         var is_local = koalaNode.id == sel.location.id
         var trg = ''
@@ -670,32 +547,35 @@ function handleService(req, res, sname, resp){
             req.url = getCallbackUrl(req)
             url = sel.url
             trg = getUrl(req.upgrade, url, '')
-            writePiggyback(req, res, true); //TODO verify
-            // console.log('LOCAL: '+sname +': ' + req.method + " " + getUrl(req.upgrade, url, req.url) )
-            console.log('LOCAL: '+sname)
+            msg = 'LOCAL: '+sname
         }else{
             trg = getUrl(req.upgrade, sel.location.url, '')
-            writePiggyback(req,res); //TODO verify
-            // console.log('RESP: '+sname + ': ' + req.method + " " + trg )
-            console.log('RESP: '+sname + ': to ' +  sel.location.id)
+            msg = 'RESP: '+sname + ': to ' +  sel.location.id
         }
-        proxyRequest(req, res, trg);
+        proxyRequest(req, res, trg, is_local, msg);
     }else{
         if (resp.id == koalaNode.id){        
             res.send('No service registered with this name: ' + sname)
         }else{
-            var urlReq = JSON.parse(srequest('GET', resp.url + '/api/lookup/' + sname).getBody('utf8'));
-            if(urlReq.err){
-                res.send(urlReq.err)
+            var cacheEntry = store.getFromCache(sname);
+            if(cacheEntry){
+                url = getUrl(req.upgrade, cacheEntry.url, '')    
+                msg = 'CACHE-HIT: '+sname + ': to ' + cacheEntry.id
+                proxyRequest(req, res, url,false, msg);
             }else{
-                var locationUrl = urlReq.url;
-                url = getUrl(req.upgrade, locationUrl, '') 
-                // console.log('FWD: '+sname + ': ' + req.method + " " + url )
-                console.log('FWD: '+sname + ': to ' + urlReq.id )
-                writePiggyback(req,res); //TODO verify
-                proxyRequest(req, res, url);    
+                console.log('LOOKUP: '+sname + ': to ' + resp.id)
+                stdRequest(false, 'GET', resp.url + '/api/lookup/' + sname, null, function(e, r, b){
+                    var urlReq = JSON.parse(b);
+                    if(urlReq.err){
+                        res.send(urlReq.err)
+                    }else{
+                        url = getUrl(req.upgrade, urlReq.url, '') 
+                        msg = 'FWD: '+sname + ': to ' + urlReq.id
+                        proxyRequest(req, res, url, false, msg);    
+                    }
+                });
             }
-            
+  
         }
     }
 }
@@ -711,15 +591,8 @@ function readPiggyback(req, rPort){
     }
     if(piggyback.source.id == koalaNode.id && piggyback.node.id != koalaNode.id){ //and if this node is not in the rt
         //i am the source
-        if(piggyback.object.length > 0){
-            if( !(piggyback.object in store.cache) || store.cache[piggyback.object].id != piggyback.node.id){
-                store.cache[piggyback.object] = {url:piggyback.node.url, id:piggyback.node.id};
-                console.log('cache the location of ' + piggyback.object + ', node ' + piggyback.node.id)    
-            }
-
-            
-        }
-        
+        store.storeToCache(piggyback.object, piggyback.node.url, piggyback.node.id)
+        store.storeToCache(piggyback.service, piggyback.node.url, piggyback.node.id)
         // console.log('me, node ' + koalaNode.id + ' should store ' + piggyback.node.id + ' on my cache for service: ' + piggyback.service)
     }
 }
@@ -813,8 +686,7 @@ function transferObject(obj, dest){
     }
 
     if(dest != null || object_index<0){//register 
-        request.post(utils.getApiUrl(destination.url, 'register'),{ json: service },
-            function (error, response, body) {
+        stdRequest(false, 'POST', utils.getApiUrl(destination.url, 'register'), service, function (error, response, body) {
                 if (!error && response.statusCode == 200) {
                     if (service.responsible.id != koalaNode.id){
                         instances.splice(object_index,1) 
@@ -828,6 +700,7 @@ function transferObject(obj, dest){
                     
                 }
             });
+
         return true;
     }
 
@@ -864,9 +737,31 @@ function findInfo(url, regex, static){
     return null    
 }
 
+function stdRequest(sync, method, url, data=null, callback=null){
+    if(sync){
+        var req = null;
+        if(method == 'GET'){
+            req = srequest('GET', url);
+        }else{
+            req = srequest('POST', url, data);
+        }
+        console.log(url + ' replied syncilly')        
+        return JSON.parse(req.getBody('utf8'))
+    }else{
+        if(method == 'GET'){
+            request.get(url, callback)
+        }else{
+            request.post(url, { json: data }, callback)
+        }
+    }
+}
 
-function proxyRequest(req, res, trg)
+function proxyRequest(req, res, trg, final=false, msg='')
 {
+    if(msg.length > 0)
+        console.log(msg)
+    
+    writePiggyback(req, res, final)
     if(req.upgrade)
         proxyWS(req, res, trg)
     else
@@ -897,11 +792,6 @@ function redirectReq(req, res, trg) //req is for compatibility with proxyWeb
     trg = req.url.startsWith("/") ? trg += req.url.replace('/','') : trg += req.url
     res.redirect(trg);
 }
-
-// function fwdServiceResponse(error, response, body){
-//     console.log('miao')
-// }
-
 
 
 function getUrl(ws, url, m){

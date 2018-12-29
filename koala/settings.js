@@ -10,6 +10,7 @@ var self = {
     alias: '',
     iface: "lo",
     transfer_threshold: 10,
+    cache_threshold: 10, //after how many cache hits, should i refresh
     debug: false,    
     mode: 'proxy',
     logObjects: true,

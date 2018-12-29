@@ -1,4 +1,5 @@
 const express = require('express')
+var request = require('request');
 // var pcap = require('pcap')
 
 
@@ -12,6 +13,17 @@ app.get('/timeout/:wait', function (req, res) {
     setInterval(function() {
         res.end('late response');
     },wt);
+})
+
+app.get('/asynchello', function (req, res) {
+     var url = 'http://localhost:4001/hello'
+     request.get(url, function(e,r,b){
+        // res.send('async ' + b)
+     })   
+})
+
+app.get('/hello', function (req, res) {
+    res.send('hello')    
 })
 
 app.get('/object/:oid/service/:sid/koala/:kid', function (req, res) {

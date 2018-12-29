@@ -134,6 +134,15 @@ var self = {
         this.services = {}
     },
 
+    instanceCopy: function(instance){
+        return { 
+                type:instance.type, name:instance.name, url:instance.url,
+                responsible: {id:instance.responsible.id, url:instance.responsible.url },
+                location: {id:instance.location.id, url:instance.location.url }
+               }
+    },
+
+
     getHistoryCount: function(objectId){
         if(objectId in this.history)
             return this.history[objectId].count
@@ -143,6 +152,28 @@ var self = {
     clearHistory: function(objectId){
         if(objectId in this.history)
             delete this.history[objectId]
+    },
+
+    getFromCache: function(name){
+        if(name in this.cache){
+            var entry = this.cache[name]
+            entry.count += 1
+            if(entry.count > settings.cache_threshold){
+                delete this.cache[name]
+                return null
+            }
+            return entry
+        }
+        return null;
+    },
+
+    storeToCache: function(name, url, id){
+        if(!name || name.length == 0) return;
+
+        if( !(name in this.cache) || this.cache[name].id != id){
+            this.cache[name] = {url:url, id:id, count:0};
+            console.log('update cache for ' + name + ' to node ' + id)    
+        }
     },
 
     //returns history entry if object relocation should be triggered 
