@@ -2,8 +2,11 @@ var os = require('os');
 var request = require('request');
 var settings = require('./settings');
 const urlparser = require('url');
+const fs = require('fs');
 
 var self = {
+    aliases: {},
+
     getRand:  function(min, max)
     {
         return Math.random() * (max - min) + min
@@ -73,8 +76,22 @@ var self = {
       request.post({ url: settings.boot_url+'/api/log', json: {msg:msg, sender:{id:koalaNode.id, alias:koalaNode.alias }}},
       function (error, response, body) {
         if (!error && response.statusCode == 200) {}
-    });
-}
+      });
+    },
+
+    loadAliases: function(){
+      fs.readFile('aliases', 'utf8', function(err, contents) {
+        if(!err){
+          aliases = JSON.parse(contents);
+        }
+      });
+    }, 
+
+    getAlias: function(id){
+      if(id in aliases)
+        return aliases[id] 
+      return id;
+    }
 
 
 };

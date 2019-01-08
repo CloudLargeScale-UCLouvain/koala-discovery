@@ -243,6 +243,11 @@ app.post(API_TRANSFER, function (req, res) {
     console.log('')
 })
 
+app.get('/cache/:val', function (req, res) {
+    settings.useCache = req.params.val == 'true'
+    console.log('Set cache to ' + settings.useCache)
+    res.send('OK')
+})
 
 app.get('/version', function (req, res) {
     res.send('Koala v:0.1')
@@ -320,7 +325,8 @@ app.get('/', function (req, res) {
     
     srvList = '<h2>Koala id: ' + koalaNode.id + ' ' + alias +'</h2><br>'
     srvList += 'URL: ' + settings.koala_url + '<br>';
-    srvList += 'Coordinates = ' + vivaldi.cordsToString(koalaNode.vivaldi.cords) + '<br>uncertainty = ' + koalaNode.vivaldi.uncertainty.toFixed(2) + '<br><br>'
+    srvList += 'Coordinates = ' + vivaldi.cordsToString(koalaNode.vivaldi.cords) + '<br>Uncertainty = ' + koalaNode.vivaldi.uncertainty.toFixed(2) + '<br>'
+    srvList += '<input id="cache" type="checkbox" onclick="cacheCheck(this);" checked > Use cache<br><br>'
 
     srvList += '<div id="srvs">'
     if (Object.keys(store.services).length > 0) 
@@ -483,7 +489,7 @@ function handleObject(req, res, sname, oname, resp){
     }else{
         if ( resp.id != koalaNode.id ){
             var cacheEntry = store.getFromCache(oname);
-            if(cacheEntry){
+            if(cacheEntry && settings.useCache){
                 url = getUrl(req.upgrade, cacheEntry.url, '')
                 msg = 'CACHE-HIT: '+sname + '('+oname+'): to ' + store.cache[oname].id
                 proxyRequest(req, res, url, false, msg);
@@ -558,7 +564,7 @@ function handleService(req, res, sname, resp){
             res.send('No service registered with this name: ' + sname)
         }else{
             var cacheEntry = store.getFromCache(sname);
-            if(cacheEntry){
+            if(cacheEntry && settings.useCache){
                 url = getUrl(req.upgrade, cacheEntry.url, '')    
                 msg = 'CACHE-HIT: '+sname + ': to ' + cacheEntry.id
                 proxyRequest(req, res, url,false, msg);
@@ -694,8 +700,10 @@ function transferObject(obj, dest){
                             delete store.services[obj]   
                         
                     }
-                    if(settings.logObjects)
+                    if(settings.logObjects){
                         utils.clog(store.getNrLocalObjects())
+                        utils.clog(obj+' (' + utils.getAlias(obj)+ ') moved from ' + koalaNode.id + ' ('+koalaNode.alias+')'  + ' to ' + destination.id + ' ('+destination.alias+')')
+                    }
                     delete store.history[obj]
                     
                 }
@@ -893,6 +901,8 @@ appserver.listen(port, function(){
     
     koalaNode = new koala.Node(settings.koala_url)    
     koalaNode.register(onRegister)
+
+    utils.loadAliases();
 
     var chrome_ports = [9229, 9329, 9222, 9230, 5037]
     var filter = 'tcp'

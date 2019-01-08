@@ -14,7 +14,7 @@ var self = {
     debug: false,    
     mode: 'proxy',
     logObjects: true,
-
+    useCache:true,
     vivaldi_dimensions:2,
     vivaldi_uncertainty_factor:0.25, 
     vivaldi_correction_factor:0.25

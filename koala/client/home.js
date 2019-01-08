@@ -191,6 +191,11 @@ function plotNeighs(){
     new Chartist.Line('.ct-chart', data, options);
 }
 
+function cacheCheck(obj){
+    var uc = document.getElementById("cache").checked
+    httpGetAsync('cache/'+uc)
+}
+
 function warining(){
     alert('Wrong input')
 }
