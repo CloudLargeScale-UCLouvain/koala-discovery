@@ -82,14 +82,14 @@ var self = {
     loadAliases: function(){
       fs.readFile('aliases', 'utf8', function(err, contents) {
         if(!err){
-          aliases = JSON.parse(contents);
+          this.aliases = JSON.parse(contents);
         }
       });
     }, 
 
     getAlias: function(id){
-      if(id in aliases)
-        return aliases[id] 
+      if(id in this.aliases)
+        return this.aliases[id] 
       return id;
     }
 

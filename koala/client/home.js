@@ -146,6 +146,31 @@ function showCreateService(){
     modal.style.display = "block";
 }
 
+function showSettings(){
+    var sets=JSON.parse(document.getElementById("settings").innerHTML)
+
+    var cnt = ''    
+    var cache = sets.cache ? 'checked' : '';
+    cnt += '<input id="cache" type="checkbox" '+cache+' > Use cache<br>'
+    cnt += 'Cache threashold: <input type="number" id="cache_th" value="'+sets.cache_th+'"><br>'
+    cnt += 'Transfer threashold: <input type="number" id="transfer_th" value="'+sets.transfer_th+'"><br>'
+    cnt += '<br><br>'
+    cnt += '<input type="button" onClick="updateSettings()" value="Update settings">'
+
+    content.innerHTML = cnt
+    modal.style.display = "block";
+}
+
+function updateSettings(){
+    var uc = document.getElementById("cache").checked
+    var cth = document.getElementById("cache_th").value
+    var tth = document.getElementById("transfer_th").value
+    var data = {cache:uc, cache_th:cth, transfer_th:tth}
+
+    httpPostAsync('/api/updateSettings', data, reload)
+    modal.style.display = "none";
+}
+
 function createService(isObject=false){
     var fid = isObject ? 'oname' : 'sname';
     var name = document.getElementById(fid).value;
@@ -191,10 +216,6 @@ function plotNeighs(){
     new Chartist.Line('.ct-chart', data, options);
 }
 
-function cacheCheck(obj){
-    var uc = document.getElementById("cache").checked
-    httpGetAsync('cache/'+uc)
-}
 
 function warining(){
     alert('Wrong input')

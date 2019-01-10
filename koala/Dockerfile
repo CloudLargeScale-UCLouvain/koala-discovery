@@ -10,12 +10,13 @@ ADD *.js /koala/
 ADD client /koala/client
 ADD boot_js /koala/boot_js
 ADD koala.sh /koala/
-
+ADD aliases /koala/
 
 WORKDIR /koala
 
 #EXPOSE 53/udp
 EXPOSE 8008
 EXPOSE 8007
+EXPOSE 4000
 
 CMD ["bash", "koala.sh"]

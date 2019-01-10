@@ -38,11 +38,14 @@ proxy.on('proxyReq', function(proxyReq, req, res, options) {
     proxyReq.setHeader('Content-Length', Buffer.byteLength(bodyData));
     proxyReq.write(bodyData);
   }
+  console.log('proxyReq %s', new Date().getTime()) 
 });
 
 proxy.on('proxyRes', function (proxyRes, req, res) {
   koalaNode.rPort = proxyRes.client.localPort;
   readPiggyback(proxyRes, req.client.remotePort);
+  console.log('proxyRes %s', new Date().getTime()) 
+
   // console.log('i am sendong on :'  + koalaNode.rPort)
   // console.log('i am receivng on :'  + req.client.remotePort)
   // console.log('RAW Response from the target', JSON.stringify(proxyRes.headers, true, 2));
@@ -76,6 +79,7 @@ API_ONREDIRECT = '/api/onredirect'
 API_REDIRECT_ALL = '/api/redirect_all'
 
 API_PERM = '/api/perm'
+API_SETTINGS = '/api/updateSettings'
 
 API_ME = '/api/me'
 
@@ -180,10 +184,14 @@ app.get(API_LOOKUP, function (req, res) {
 
 
 app.get(API_GET, function (req, res) {
-    if(req.url.slice(-1) === "/")
-        fwd_to_service(req,res)   
-    else //what a stupid workaround, but life is too short to do things correctly
-        res.redirect('/api/get/'+req.params.service+'/');
+    console.log('router %s', new Date().getTime()) 
+    fwd_to_service(req,res)   
+    // if(req.url.slice(-1) === "/")
+    //     fwd_to_service(req,res)   
+    // else{ //what a stupid workaround, but life is too short to do things correctly
+    //    console.log('redirection') 
+    //    res.redirect('/api/get/'+req.params.service+'/');
+    // }
 })
 
 app.get(API_GET_OBJECT, function (req, res) {
@@ -243,9 +251,11 @@ app.post(API_TRANSFER, function (req, res) {
     console.log('')
 })
 
-app.get('/cache/:val', function (req, res) {
-    settings.useCache = req.params.val == 'true'
-    console.log('Set cache to ' + settings.useCache)
+app.post(API_SETTINGS, function (req, res) {
+    settings.useCache = req.body.cache
+    settings.cache_threshold = parseInt(req.body.cache_th)
+    settings.transfer_threshold = parseInt(req.body.transfer_th)
+    console.log('Settings updated to: ' + JSON.stringify(req.body))
     res.send('OK')
 })
 
@@ -323,10 +333,10 @@ app.get('/', function (req, res) {
     var loc = settings.isCore ? 'core' : 'edge';
     var alias = settings.alias.length > 0 ? '(' + settings.alias + ' - ' + loc + ')' : '('+loc+')';
     
-    srvList = '<h2>Koala id: ' + koalaNode.id + ' ' + alias +'</h2><br>'
+    srvList = '<h2>Koala id: ' + koalaNode.id + ' ' + alias +'</h2> <br>'
     srvList += 'URL: ' + settings.koala_url + '<br>';
-    srvList += 'Coordinates = ' + vivaldi.cordsToString(koalaNode.vivaldi.cords) + '<br>Uncertainty = ' + koalaNode.vivaldi.uncertainty.toFixed(2) + '<br>'
-    srvList += '<input id="cache" type="checkbox" onclick="cacheCheck(this);" checked > Use cache<br><br>'
+    srvList += 'Coordinates = ' + vivaldi.cordsToString(koalaNode.vivaldi.cords) + '<br>Uncertainty = ' + koalaNode.vivaldi.uncertainty.toFixed(2) + '<br><br>'
+    srvList += '<button class="btn" onClick="showSettings()"><i class="fa fa-cog"></i> Settings</button><br><br>'
 
     srvList += '<div id="srvs">'
     if (Object.keys(store.services).length > 0) 
@@ -386,6 +396,7 @@ app.get('/', function (req, res) {
     var hiddenFields='<div style="display:none">'
     hiddenFields+='<span id="coreIP">'+ utils.parseURL(koalaNode.core.url).hostname +'</span>'
     hiddenFields+='<span id="cords">' + convertCordsToSeries() + '</span>'
+    hiddenFields+='<span id="settings">' + getSettings() + '</span>'
     hiddenFields+='</div>'
 
     var dialog = '<div id="myModal" class="modal"><div class="modal-content"><span class="close">&times;</span><p id="modal-form">Some text in the Modal..</p></div></div>'
@@ -393,7 +404,10 @@ app.get('/', function (req, res) {
     scripts += '<script src="chartist.min.js"></script>'
     scripts += '<script src="chartist-plugin-tooltip.min.js"></script>'
     var css = '<link rel="stylesheet" type="text/css" href="style.css">'
-    css += '<link rel="stylesheet" href="chartist.min.css"><link rel="stylesheet" href="chartist-plugin-tooltip.css">'
+    css += '<link rel="shortcut icon" type="image/png" href="favicon.png"/>'
+    css += '<link rel="stylesheet" href="chartist.min.css">'
+    css += '<link rel="stylesheet" href="chartist-plugin-tooltip.css">'
+    css += '<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">'
     res.send(css+'<div style="text-align:center">'+srvList + '<br><br>'+ neigsList +'</div>' + chart + hiddenFields + dialog + scripts)
 
 
@@ -449,8 +463,9 @@ function lookup(req,res){
 
 
 function fwd_to_service(req,res){
+    var start = new Date().getTime();
+    console.log('start %s',start)
     readPiggyback(req, req.client.remotePort);
-
     var params = parseRequest(req)  
     var sname = params.service
     
@@ -467,7 +482,9 @@ function fwd_to_service(req,res){
     else
         handleService(req, res, sname, resp)
     
-    
+    var end = new Date().getTime();
+    // console.log(end-start)
+    console.log('fwd %s',end)
 }
 
 function handleObject(req, res, sname, oname, resp){
@@ -852,6 +869,11 @@ function convertCordsToSeries(){
     
   }
   return JSON.stringify(series);
+}
+
+function getSettings(){
+    var sets = {cache:settings.useCache, cache_th:settings.cache_threshold, transfer_th:settings.transfer_threshold}
+    return JSON.stringify(sets);
 }
 
 
