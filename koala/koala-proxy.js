@@ -18,12 +18,15 @@ app.use(express.urlencoded({extended: true}));
 app.use(express.json());
 app.use(express.static('client'))
 app.use(express.static('boot_js'))
-var proxy = httpProxy.createProxyServer({timeout:10000, proxyTimeout:10000});
+
+var http = require('http');
+var keepAliveAgent = new http.Agent({ keepAlive: true, maxSockets: 1000 });
+// var proxy = httpProxy.createProxyServer({timeout:10000, proxyTimeout:10000});
+var proxy = httpProxy.createProxyServer({timeout:10000, proxyTimeout:10000, agent:keepAliveAgent});
 // var expressWs = require('express-ws')(app);
 
 var srequest = require('sync-request');
 
-var http = require('http');
 var appserver = http.createServer(app);
 appserver.on('upgrade', function (req, socket, head) {
    fwd_to_service(req, res)
@@ -331,9 +334,11 @@ app.get('/', function (req, res) {
     //     fwd_to_service(req,res,sname)   
     // }
     var loc = settings.isCore ? 'core' : 'edge';
+    var debug = settings.debug ? ' (debug) ' : ''
     var alias = settings.alias.length > 0 ? '(' + settings.alias + ' - ' + loc + ')' : '('+loc+')';
     
-    srvList = '<h2>Koala id: ' + koalaNode.id + ' ' + alias +'</h2> <br>'
+    srvList = '<h2>Koala id: ' + koalaNode.id + ' ' + alias + debug +'</h2> <br>'
+    
     srvList += 'URL: ' + settings.koala_url + '<br>';
     srvList += 'Coordinates = ' + vivaldi.cordsToString(koalaNode.vivaldi.cords) + '<br>Uncertainty = ' + koalaNode.vivaldi.uncertainty.toFixed(2) + '<br><br>'
     srvList += '<button class="btn" onClick="showSettings()"><i class="fa fa-cog"></i> Settings</button><br><br>'
@@ -883,11 +888,11 @@ function onRegister(){
 
     if(settings.debug){ 
         var srvurl = 'http://'+utils.parseURL(koalaNode.core.url).hostname + ':4000';
-        store.registerServices([{'test':true, 'name':'dymmysrv', 'url':srvurl}]);
+        store.registerServices([{'test':true, 'name':'dummyService', 'url':srvurl}]);
         
-        if(settings.isCore){
-            store.registerServices([{'test':true, 'type':'object', 'name':'dummyobj'}]);
-        }
+        // if(settings.isCore){
+        //     store.registerServices([{'test':true, 'type':'object', 'name':'dummyobj'}]);
+        // }
     }
 }
 

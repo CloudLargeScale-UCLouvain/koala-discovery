@@ -3,7 +3,7 @@ FROM node:8.12.0
 
 RUN apt-get update && apt install -y libpcap-dev iproute2; \
     npm install express http-proxy express-ws request djb2 system-sleep pcap sync-request; 
-
+RUN npm install -g nodemon;
 RUN mkdir koala
 
 ADD *.js /koala/

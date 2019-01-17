@@ -1,7 +1,7 @@
 version: '3'
 services:
     
-    koala-core:
+    koala:
         container_name: koala-core
         image: gtato/koala:redirect
         build: .
@@ -10,69 +10,89 @@ services:
            - 8008:8008
            - 8007:8007
            - 4000:4000
-
-        # volumes:
-        #     - ./koala:/koala
+        volumes:
+            - .:/debug
         environment:
             - KOALA_BOOT=1
+            - KOALA_DEBUG=1
             - TEST_SERVER=1
             - CORE=true
             - IFACE=eth0
             - KOALA_BOOT_URL=http://koala-core:8007
             - TRANSFER_THRESHOLD=10
 
-    koala-edge1:
-        container_name: koala-edge1
-        image: gtato/koala:redirect
-        build: .
-        privileged: true
-        ports:
-           - 8009:8008
-        # volumes:
-        #     - ./koala:/koala
-        depends_on: 
-            - koala-core
-        environment:
-            - IFACE=eth0
-            - KOALA_BOOT_URL=http://koala-core:8007
-            - ALIAS=edge1
-            - TRANSFER_THRESHOLD=10
+    # koala-core:
+    #     container_name: koala-core
+    #     image: gtato/koala:redirect
+    #     build: .
+    #     privileged: true
+    #     ports:
+    #        - 8008:8008
+    #        - 8007:8007
+    #        - 4000:4000
+
+    #     # volumes:
+    #     #     - ./koala:/koala
+    #     environment:
+    #         - KOALA_BOOT=1
+    #         - TEST_SERVER=1
+    #         - CORE=true
+    #         - IFACE=eth0
+    #         - KOALA_BOOT_URL=http://koala-core:8007
+    #         - TRANSFER_THRESHOLD=10
+
+    # koala-edge1:
+    #     container_name: koala-edge1
+    #     image: gtato/koala:redirect
+    #     build: .
+    #     privileged: true
+    #     ports:
+    #        - 8009:8008
+    #     # volumes:
+    #     #     - ./koala:/koala
+    #     depends_on: 
+    #         - koala-core
+    #     environment:
+    #         - IFACE=eth0
+    #         - KOALA_BOOT_URL=http://koala-core:8007
+    #         - ALIAS=edge1
+    #         - TRANSFER_THRESHOLD=10
 
 
-    koala-edge2:
-        container_name: koala-edge2
-        image: gtato/koala:redirect
-        build: .
-        privileged: true
-        ports:
-           - 8010:8008
-        # volumes:
-        #     - ./koala:/koala
-        depends_on: 
-            - koala-core
-        environment:
-            - IFACE=eth0
-            - KOALA_BOOT_URL=http://koala-core:8007
-            - ALIAS=edge2
-            - TRANSFER_THRESHOLD=100
+    # koala-edge2:
+    #     container_name: koala-edge2
+    #     image: gtato/koala:redirect
+    #     build: .
+    #     privileged: true
+    #     ports:
+    #        - 8010:8008
+    #     # volumes:
+    #     #     - ./koala:/koala
+    #     depends_on: 
+    #         - koala-core
+    #     environment:
+    #         - IFACE=eth0
+    #         - KOALA_BOOT_URL=http://koala-core:8007
+    #         - ALIAS=edge2
+    #         - TRANSFER_THRESHOLD=100
 
 
-    pumba-core:
-        image: gaiaadm/pumba
-        command: "pumba netem --duration 24h30m --interface eth0 delay --time 30 --jitter 1 koala-core"
-        volumes:
-            - /var/run/docker.sock:/var/run/docker.sock
-        depends_on: 
-            - koala-core
-            - koala-edge1
-            - koala-edge2
+    # pumba-core:
+    #     image: gaiaadm/pumba
+    #     command: "pumba netem --duration 24h30m --interface eth0 delay --time 30 --jitter 1 koala-core"
+    #     volumes:
+    #         - /var/run/docker.sock:/var/run/docker.sock
+    #     depends_on: 
+    #         - koala-core
+    #         - koala-edge1
+    #         - koala-edge2
     
-    pumba-edge:
-        image: gaiaadm/pumba
-        command: "pumba netem --duration 24h30m --interface eth0 delay --time 5 --jitter 1 koala-edge1"
-        volumes:
-            - /var/run/docker.sock:/var/run/docker.sock
-        depends_on: 
-            - koala-core
-            - koala-edge1
-            - koala-edge2
+    # pumba-edge:
+    #     image: gaiaadm/pumba
+    #     command: "pumba netem --duration 24h30m --interface eth0 delay --time 5 --jitter 1 koala-edge1"
+    #     volumes:
+    #         - /var/run/docker.sock:/var/run/docker.sock
+    #     depends_on: 
+    #         - koala-core
+    #         - koala-edge1
+    #         - koala-edge2
