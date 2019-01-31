@@ -18,5 +18,6 @@ WORKDIR /koala
 EXPOSE 8008
 EXPOSE 8007
 EXPOSE 4000
+EXPOSE 5000
 
 CMD ["bash", "koala.sh"]

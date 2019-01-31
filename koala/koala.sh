@@ -9,6 +9,7 @@ fi
 
 if [[ -v TEST_SERVER ]] && [ "$TEST_SERVER" -eq "1" ] ; then
     nodemon dummy-server.js&
+    nodemon dummy-proxy.js&
 fi
 
 # nodemon koala-dns.js&

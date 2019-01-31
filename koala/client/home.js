@@ -151,7 +151,9 @@ function showSettings(){
 
     var cnt = ''    
     var cache = sets.cache ? 'checked' : '';
+    var pb = sets.piggyback ? 'checked' : '';
     cnt += '<input id="cache" type="checkbox" '+cache+' > Use cache<br>'
+    cnt += '<input id="piggyback" type="checkbox" '+pb+' > Piggyback<br>'
     cnt += 'Cache threashold: <input type="number" id="cache_th" value="'+sets.cache_th+'"><br>'
     cnt += 'Transfer threashold: <input type="number" id="transfer_th" value="'+sets.transfer_th+'"><br>'
     cnt += '<br><br>'
@@ -163,9 +165,10 @@ function showSettings(){
 
 function updateSettings(){
     var uc = document.getElementById("cache").checked
+    var pb = document.getElementById("piggyback").checked
     var cth = document.getElementById("cache_th").value
     var tth = document.getElementById("transfer_th").value
-    var data = {cache:uc, cache_th:cth, transfer_th:tth}
+    var data = {cache:uc, piggyback:pb, cache_th:cth, transfer_th:tth}
 
     httpPostAsync('/api/updateSettings', data, reload)
     modal.style.display = "none";

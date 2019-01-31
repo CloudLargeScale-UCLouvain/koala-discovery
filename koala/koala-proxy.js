@@ -20,9 +20,9 @@ app.use(express.static('client'))
 app.use(express.static('boot_js'))
 
 var http = require('http');
-var keepAliveAgent = new http.Agent({ keepAlive: true, maxSockets: 1000 });
-// var proxy = httpProxy.createProxyServer({timeout:10000, proxyTimeout:10000});
+var keepAliveAgent = new http.Agent({ keepAlive: true});
 var proxy = httpProxy.createProxyServer({timeout:10000, proxyTimeout:10000, agent:keepAliveAgent});
+// var proxy = httpProxy.createProxyServer({agent:keepAliveAgent});
 // var expressWs = require('express-ws')(app);
 
 var srequest = require('sync-request');
@@ -33,7 +33,7 @@ appserver.on('upgrade', function (req, socket, head) {
    // proxyWS(req, head, 'ws://192.168.56.1:4545');
 });
 
-
+var timestamps = []
 proxy.on('proxyReq', function(proxyReq, req, res, options) {
   if(req.body && req.headers['content-type'] != 'image/jpeg') {
     var bodyData = JSON.stringify(req.body);
@@ -41,13 +41,13 @@ proxy.on('proxyReq', function(proxyReq, req, res, options) {
     proxyReq.setHeader('Content-Length', Buffer.byteLength(bodyData));
     proxyReq.write(bodyData);
   }
-  console.log('proxyReq %s', new Date().getTime()) 
+  timestamps.push(new Date().getTime())
 });
 
 proxy.on('proxyRes', function (proxyRes, req, res) {
   koalaNode.rPort = proxyRes.client.localPort;
   readPiggyback(proxyRes, req.client.remotePort);
-  console.log('proxyRes %s', new Date().getTime()) 
+  console.log('proxyRes %s', (new Date().getTime() - timestamps.pop() )) 
 
   // console.log('i am sendong on :'  + koalaNode.rPort)
   // console.log('i am receivng on :'  + req.client.remotePort)
@@ -185,9 +185,9 @@ app.get(API_LOOKUP, function (req, res) {
 
 
 
-
+ 
 app.get(API_GET, function (req, res) {
-    console.log('router %s', new Date().getTime()) 
+    // console.log('router %s', new Date().getTime()) 
     fwd_to_service(req,res)   
     // if(req.url.slice(-1) === "/")
     //     fwd_to_service(req,res)   
@@ -251,13 +251,15 @@ app.post(API_ONTRANSFER, function (req, res) {
 
 app.post(API_TRANSFER, function (req, res) {
     var service = req.body.service
-    console.log('')
+    // console.log('')
 })
 
 app.post(API_SETTINGS, function (req, res) {
     settings.useCache = req.body.cache
+    settings.piggyback = req.body.piggyback
     settings.cache_threshold = parseInt(req.body.cache_th)
     settings.transfer_threshold = parseInt(req.body.transfer_th)
+
     console.log('Settings updated to: ' + JSON.stringify(req.body))
     res.send('OK')
 })
@@ -469,7 +471,7 @@ function lookup(req,res){
 
 function fwd_to_service(req,res){
     var start = new Date().getTime();
-    console.log('start %s',start)
+    console.log('fwd at %s',start)
     readPiggyback(req, req.client.remotePort);
     var params = parseRequest(req)  
     var sname = params.service
@@ -480,6 +482,8 @@ function fwd_to_service(req,res){
     var searchname = is_object  ? oname : sname;
     req.headers['x-service'] = sname
     req.headers['x-object'] = oname
+    if (!req.upgrade)
+        req.headers['connection'] = 'keep-alive'
 
     var resp = koalaNode.getResponsible(searchname)
     if(is_object)
@@ -489,7 +493,7 @@ function fwd_to_service(req,res){
     
     var end = new Date().getTime();
     // console.log(end-start)
-    console.log('fwd %s',end)
+    // console.log('fwd %s',end)
 }
 
 function handleObject(req, res, sname, oname, resp){
@@ -626,7 +630,7 @@ function readPiggyback(req, rPort){
 }
 
 function writePiggyback(req, res, isFinalResult=false){
-    if(req.upgrade) return;
+    if(req.upgrade || !settings.piggyback) return;
 
     var piggyback = null;
 
@@ -877,7 +881,7 @@ function convertCordsToSeries(){
 }
 
 function getSettings(){
-    var sets = {cache:settings.useCache, cache_th:settings.cache_threshold, transfer_th:settings.transfer_threshold}
+    var sets = {cache:settings.useCache, piggyback:settings.piggyback, cache_th:settings.cache_threshold, transfer_th:settings.transfer_threshold}
     return JSON.stringify(sets);
 }
 
@@ -941,6 +945,8 @@ appserver.listen(port, function(){
 
     tcp_tracker.on('session', function (session) {
         // console.log("Start of session between " + session.src_name + " and " + session.dst_name);
+        
+        // console.log('session start %s',new Date().getTime())
         var src = utils.parseURL(utils.addProt(session.src_name))
         var dst = utils.parseURL(utils.addProt(session.dst_name))
         var srcPort = src.port
@@ -949,6 +955,7 @@ appserver.listen(port, function(){
         
         session.on('end', function (session) {
             // console.log("End of TCP session between " + session.src_name + " and " + session.dst_name);
+            // console.log('session end %s',new Date().getTime())
             var stats = session.session_stats();
             var rtt = stats.connect_duration*1000;
             // console.log('rtt : ' + rtt)
@@ -978,5 +985,5 @@ appserver.listen(port, function(){
     // utils.clog('mihehe i started')
     console.log('Koala proxy running at: ' + settings.koala_url)
 });
-
+appserver.keepAliveTimeout =  (10 * 60 * 1000);
 
